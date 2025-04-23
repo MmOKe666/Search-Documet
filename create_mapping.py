@@ -3,11 +3,14 @@ import os
 import uuid
 import re
 
-text_folder = "C:/Савелий Волкович/python/Files/text_files"
-json_folder = "C:/Савелий Волкович/python/Files/json"
+text_folder = "C:/Савелий Волкович/python/prog/Files/text_files"
+json_folder = "C:/Савелий Волкович/python/prog/Files/json"
 json_path = os.path.join(json_folder, "documentation_mapping.json")
 
 documents = []
+
+if not os.path.exists(json_folder):
+    os.makedirs(json_folder)
 
 for file_name in os.listdir(text_folder):
     if file_name.endswith(".txt"):

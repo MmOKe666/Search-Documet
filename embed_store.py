@@ -5,7 +5,7 @@ import json
 import os
 
 # Пути к папкам
-json_folder = "C:/Савелий Волкович/python/Files/json"
+json_folder = "C:/Савелий Волкович/python/prog/Files/json"
 json_path = os.path.join(json_folder, "documentation_mapping.json")
 
 # Подключение к Weaviate

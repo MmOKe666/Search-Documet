@@ -21,8 +21,8 @@ def docx_to_text(docx_path, text_folder):
     print(f"Файл сохранён: {output_path}")
 
 # Путь к папке с .docx файлами
-docx_folder = "C:/Савелий Волкович/python/Files/Documents"
-text_folder = "C:/Савелий Волкович/python/Files/text_files"
+docx_folder = "C:/Савелий Волкович/python/Documents"
+text_folder = "C:/Савелий Волкович/python/prog/Files/text_files"
 
 # Обход всех .docx файлов в папке
 for filename in os.listdir(docx_folder):
