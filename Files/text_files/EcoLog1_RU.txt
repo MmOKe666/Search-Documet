@@ -1,0 +1,166 @@
+
+Спецификация
+Компонент IEcoLog1
+Статус: Черновик
+Дата: Ноябрь 8, 2021
+Версия: 1.0
+
+
+
+
+Обзор
+Данный документ описывает требования к реализации компонента Eco.Log1.
+Введение
+Описание.
+
+Примечание
+Ключевые слова в документе
+
+
+Ссылки
+Данный параграф содержит ссылки на информацию, помогающую понять данный документ: 
+[] – наименование ссылки
+Доступен по: http://адрес
+
+ Компонент Eco. Log1
+
+Компонент. 
+Компонент, имеет следующие описание:
+
+Интерфейс IEcoLog1
+
+ IEcoLog1 описание на ECO IDL
+
+
+
+Функция AddAffiliate
+
+Функция 
+Функция set_LevelMask
+
+Функция 
+Функция get_LevelMask
+
+Функция 
+Функция Debug
+
+Функция 
+Функция Info
+
+Функция 
+Функция Warn
+
+Функция 
+Функция Error
+
+Функция 
+Функция Fatal
+
+Функция 
+Функция DebugFormat
+
+Функция 
+
+Функция InfoFormat
+
+Функция 
+Функция recvmmsg
+		
+Функция 
+Функция WarnFormat
+
+Функция 
+Функция ErrorFormat
+
+Функция 
+Функция FatalFormat
+
+Функция 
+Функция HexDump
+
+Функция 
+Функция BinDump
+
+Функция 
+
+
+Интерфейс IEcoLog1Affiliate
+
+IEcoLog1Affiliate описание на ECO IDL
+
+
+
+Функция get_Name
+
+Функция 
+Функция get_Layout
+
+Функция 
+Функция set_Layout
+
+Функция 
+Функция Write
+
+Функция 
+
+Интерфейс IEcoLog1Layout
+
+IEcoLog1Layout описание на ECO IDL
+
+
+
+Функция get_Name
+
+Функция 
+Функция Format
+
+Функция 
+
+Интерфейс IEcoLog1ConsoleAffiliate
+
+IEcoLog1ConsoleAffiliate описание на ECO IDL
+
+
+
+Функция get_TargetOutput
+
+Функция 
+Функция set_TargetOutput
+
+Функция 
+
+Интерфейс IEcoLog1FileAffiliate
+
+IEcoLog1FileAffiliate описание на ECO IDL
+
+
+
+Функция get_FileName
+
+Функция 
+Функция set_FileName
+
+Функция 
+
+Интерфейс IEcoLog1SimpleLayout
+
+IEcoLog1SimpleLayout описание на ECO IDL
+
+
+
+Функция get_Pattern
+
+Функция 
+Функция set_Pattern
+
+Функция 
+
+Коды ошибок
+
+Следующая таблица содержит коды ошибок.
+
+
+
+Приложение А: Обучающие программы
+
+
