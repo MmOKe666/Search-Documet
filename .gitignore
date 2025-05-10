@@ -1,0 +1,7 @@
+# ignoring python venv
+.venv*
+Files/json/**/*
+!Files/json/
+Files/text_files/**/*
+!Files/text_files/
+SourceDocs/*
