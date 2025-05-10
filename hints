@@ -1,3 +1,94 @@
+# Weaviate official documentation
+https://weaviate.io/developers/weaviate/quickstart/local
+
+# example of using query in RAG use-case
+https://weaviate.io/developers/weaviate/search/generative
+
+
 # adding new Python venv
 /c/Users/Николай/AppData/Local/Microsoft/WindowsApps/python3.13.exe -m venv .venv-3.13
 
+# улучшенная структура json
+
+[
+    {
+        "id": "41300fac-80a2-4ae7-a4e9-58aa7eb2d9cd",
+        "content": "# Спецификация\n## Компонент IEcoDateTime1\n...",
+        "metadata": {
+            "title": "Спецификация",
+            "version": "1.0",
+            "component": "IEcoDateTime1",
+            "overview": "Данный документ описывает требования к реализации компонента Eco.DateTime1.",
+            "author": "",
+            "date": "Ноябрь 8, 2021",
+            "last_updated": "2023-11-15T14:30:00Z",  // Add timestamp for updates
+            "document_key": "IEcoDateTime1_spec",    // Add a stable identifier
+            "revision": 1                           // Add revision counter
+        }
+    }
+]
+
+
+# The key improvements are:
+
+- last_updated: Timestamp to track when the document was last modified
+
+- document_key: A stable, human-readable identifier that doesn't change
+
+- revision: A counter that increments with each update
+
+# Complete RAG Update Workflow
+Here's the complete workflow I recommend:
+
+Preprocessing:
+
+Parse your updated document
+
+Extract metadata and content
+
+Generate a stable document key (e.g., {component}_spec)
+
+Database Operations:
+
+Query your vector DB using the document key
+
+If found, update the existing document and increment revision
+
+If not found, create a new document with revision 1
+
+Vector Regeneration:
+
+Re-chunk the updated content if needed
+
+Generate new embeddings for the updated chunks
+
+Replace old vectors with new ones
+
+Validation:
+
+Perform a test query to ensure the updated content is retrievable
+
+Log the update operation for auditing purposes
+
+# Best Practices for RAG Updates
+Maintain document history: Consider keeping a history of document revisions for auditing and rollback.
+
+Chunk strategically: If your documents are chunked for embedding, ensure your update process handles chunk boundaries properly.
+
+Batch updates: If updating multiple documents, batch the operations to improve performance.
+
+Versioning: Consider implementing a formal versioning system for your documentation.
+
+Incremental updates: For large documents, consider implementing delta updates to only re-embed changed sections.
+
+Monitoring: Track metrics like embedding quality and retrieval performance before and after updates.
+
+
+
+# AI prompts examples:
+you area data-science engineer specialized on training and fine-tunning of LLM and specifically managing RAG databases. How to update the RAG, containing the product documentation in case one particular document has changed and its content should be updated in the RAG. My current input json file is opened in IDE, where each imported document is issued the unique id when the document is being imported into RAG. Please advise how to import the updated document and to avoid of keeping duplicate contents and just updating the changed part. Should i change my import json structure to make such process more effective and easy / simple? Please describe my actions for such RAG update step by step.
+
+# hagging Face config:
+
+
+We add the API key here (HUGGINGFAC_APIKEY: sk-foobar). I test it with “microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract” and it is working. Hope this helps!

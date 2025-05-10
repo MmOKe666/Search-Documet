@@ -1,5 +1,4 @@
 import weaviate
-from weaviate.classes.query import NearText
 
 # Connect to Weaviate
 client = weaviate.connect_to_local()  # Connect with default parameters

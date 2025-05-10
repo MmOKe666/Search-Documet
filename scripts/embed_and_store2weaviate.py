@@ -1,9 +1,10 @@
 from transformers import AutoTokenizer, AutoModel
 import torch
 import weaviate
-from weaviate.classes.config import Configure, Property, DataType
+from weaviate.classes.config import Property, DataType
 import json
 import os
+import pprint
 
 # Пути к папкам
 json_folder = os.path.normpath("../Files/json")
@@ -18,7 +19,9 @@ model = AutoModel.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
 # model = AutoModel.from_pretrained("DeepPavlov/rubert-base-cased")
 
 # Connect to Weaviate
-client = weaviate.connect_to_local()  # Connect with default parameters
+client = weaviate.connect_to_local()
+
+print(client.is_ready())  # Should print: `True`
 
 # Define the function before it's called
 def embed_and_store(text, metadata):
@@ -51,6 +54,24 @@ try:
         client.collections.create(
             "Document",
             description="Документы с контентом и метаданными",
+            # properties= [
+            #     {
+            #         "name": "content", 
+            #         "dataType": ["text"], 
+            #         "description": "Основной текст документа"
+            #     },
+            #     {
+            #         "name": "title", 
+            #         "dataType": ["text"], 
+            #         "description": "Название документа"
+            #     },
+            #     {
+            #         "name": "metadata", 
+            #         "dataType": ["text"], 
+            #         "description": "Метаданные документа в JSON"
+            #     }
+            # ]
+            # the below lines not yet work in python 3.13
             properties=[
                 Property(name="content", data_type=DataType.TEXT, description="Основной текст документа"),
                 Property(name="title", data_type=DataType.TEXT, description="Название документа"),
@@ -81,3 +102,54 @@ finally:
     client.close()  # Ensure the connection is closed
 
 print("✅ Все документы загружены в Weaviate.")
+
+def print_schema():
+    """
+    Print the schema of the Weaviate instance using v4 API
+    """
+    # Connect to Weaviate
+    client = weaviate.connect_to_local()
+    
+    try:
+        # Get all collections
+        collections = client.collections.get_all()
+        
+        print("=== WEAVIATE SCHEMA ===")
+        print(f"Found {len(collections)} collections:")
+        
+        # Iterate through each collection
+        for collection in collections:
+            print(f"\n📚 Collection: {collection.name}")
+            print(f"   Description: {collection.description}")
+            print(f"   Vector dimension: {collection.vector_indexing.vector_index_config.dimensions}")
+            
+            # Get properties
+            properties = collection.properties
+            print(f"   Properties ({len(properties)}):")
+            
+            for prop in properties:
+                data_type = prop.data_type
+                if isinstance(data_type, list):
+                    data_type = ", ".join(data_type)
+                print(f"   - {prop.name}: {data_type}")
+                if prop.description:
+                    print(f"     Description: {prop.description}")
+            
+            # Get additional configuration
+            print(f"   Vector index type: {collection.vector_indexing.vector_index_type}")
+            print(f"   Sharding strategy: {collection.sharding.strategy}")
+            
+            # Get count of objects
+            try:
+                count = collection.aggregate.over_all().objects_count
+                print(f"   Total objects: {count}")
+            except Exception as e:
+                print(f"   Error getting object count: {e}")
+    
+    except Exception as e:
+        print(f"Error retrieving schema: {e}")
+    finally:
+        client.close()
+
+# Uncomment the line below to print the schema after loading documents
+# print_schema()
