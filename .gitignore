@@ -1,4 +1,6 @@
 # ignoring python venv
+3.12*
+3.12-env/*
 .venv*
 Files/json/**/*
 !Files/json/

@@ -4,7 +4,6 @@ import weaviate
 from weaviate.classes.config import Property, DataType
 import json
 import os
-import pprint
 
 # Пути к папкам
 json_folder = os.path.normpath("../Files/json")

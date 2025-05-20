@@ -1,5 +1,4 @@
 import weaviate
-import sys
 
 def print_weaviate_info():
     """

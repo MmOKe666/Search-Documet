@@ -92,3 +92,15 @@ you area data-science engineer specialized on training and fine-tunning of LLM a
 
 
 We add the API key here (HUGGINGFAC_APIKEY: sk-foobar). I test it with “microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract” and it is working. Hope this helps!
+
+
+# Python / PIP hints
+
+# upgrade pip
+% python -m pip install --upgrade pip
+
+# create venv on Mac
+% /usr/local/opt/python@3.12/bin/python3 -m venv 3.12-env
+
+# activate venv
+% source 3.12-env/bin/activate
