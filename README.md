@@ -33,3 +33,5 @@ python scripts/search_weaviate_v4.py "datetime functions"
 
 4. Через embed_store.py загрузить данные в базу данных Weaviate.
 5. С помощью read_weaviate можно посмотреть, что загрузилось в базу данных.
+
+ Для запуска qdrant docker run -d --name qdrant -p 6333:6333  qdrant/qdrant
