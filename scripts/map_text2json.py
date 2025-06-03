@@ -13,68 +13,90 @@ documents = []
 if not os.path.exists(json_folder):
     os.makedirs(json_folder)
 
+# Chunking Settings
+CHUNK_SIZE = 1000
+CHUNK_OVERLAP = 50
+
+def chunk_text(text, chunk_size=CHUNK_SIZE, overlap=CHUNK_OVERLAP):
+    chunks = []
+    start = 0
+    while start < len(text):
+        end = min(start + chunk_size, len(text))
+        chunk = text[start:end].strip()
+        if chunk:
+            chunks.append(chunk)
+        start += chunk_size - overlap
+    return chunks
+
 for file_name in os.listdir(text_folder):
     if file_name.endswith(".txt"):
         file_path = os.path.join(text_folder, file_name)
         with open(file_path, 'r', encoding='utf-8') as file:
             content = file.read()
 
-            # Форматирование текста (заголовки в markdown)
+            # Text formatting (headings in markdown)
             formatted_content = content
 
-            # Главный заголовок
-            formatted_content = re.sub(r'^\s*Спецификация\s*$', r'# Спецификация', formatted_content, flags=re.MULTILINE)
+            # Main headline
+            formatted_content = re.sub(r'^\s*Specification\s*$', r'# Specification', formatted_content, flags=re.MULTILINE)
 
-            # 1. Разделы верхнего уровня
-            formatted_content = re.sub(r'^\s*(Обзор|Коды ошибок|Приложение А[^\n]*)',
+            # 1. Top-level sections
+            formatted_content = re.sub(r'^\s*(Overview|Error codes|Appendix A[^\n]*)',
                                        r'## \1', formatted_content, flags=re.MULTILINE)
 
-            # 1. Главы: Компонент / Интерфейс
-            formatted_content = re.sub(r'^\s*(Компонент\s+[^\n]+)', r'## \1', formatted_content, flags=re.MULTILINE)
-            formatted_content = re.sub(r'^\s*(Интерфейс\s+[^\n]+)', r'## \1', formatted_content, flags=re.MULTILINE)
+            # 1. Chapters: Component / Interface
+            formatted_content = re.sub(r'^\s*(Component\s+[^\n]+)', r'## \1', formatted_content, flags=re.MULTILINE)
+            formatted_content = re.sub(r'^\s*(Interface\s+[^\n]+)', r'## \1', formatted_content, flags=re.MULTILINE)
 
-            # 1.1 Подглавы: Обзор
-            formatted_content = re.sub(r'^\s*(Введение|Примечание|Ссылки)\s*$', r'## \1', formatted_content,flags=re.MULTILINE)
+            # 1.1 Sub-chapters: Overview
+            formatted_content = re.sub(r'^\s*(Introduction|Note|Links)\s*$', r'## \1', formatted_content,flags=re.MULTILINE)
 
-            # 1.1 Подглавы: описание интерфейсов
-            formatted_content = re.sub(r'^\s*([^\n]+ описание на ECO IDL)', r'### \1', formatted_content,
+            # 1.1 Sub-chapters: description of interfaces
+            formatted_content = re.sub(r'^\s*([^\n]+ IDL)', r'### \1', formatted_content,
                                        flags=re.MULTILINE)
 
-            # 1.1.1 Функции
-            formatted_content = re.sub(r'^\s*Функция\s+([^\n]+)', r'#### Функция \1', formatted_content,
+            # 1.1.1 Functions
+            formatted_content = re.sub(r'^\s*function\s+([^\n]+)', r'#### function \1', formatted_content,
                                        flags=re.MULTILINE)
 
-            # Очистка лишних пустых строк
+            # Clearing unnecessary empty lines
             formatted_content = re.sub(r'\n{3,}', '\n\n', formatted_content)
 
             content = formatted_content
 
-            # Извлекаем метаданные
-            title_match = re.search(r'Спецификация', content)
-            version_match = re.search(r'Версия:\s*([^\n\r]+)', content)
-            component_match = re.search(r'Компонент\s+([^\n\r]+)', content)
-            overview_match = re.search(r'Обзор\s*([\s\S]+?)(?=\n\S|\Z)', content)
-            author_match = re.search(r'Автор:\s*([^\n\r]+)', content)
-            date_match = re.search(r'Дата:\s*([^\n\r]+)', content)
+            # Extracting metadata
+            title_match = re.search(r'Specification', content)
+            version_match = re.search(r'Version:\s*([^\n\r]+)', content)
+            component_match = re.search(r'Component\s+([^\n\r]+)', content)
+            overview_match = re.search(r'Overview\s*([\s\S]+?)(?=\n\S|\Z)', content)
+            author_match = re.search(r'Author:\s*([^\n\r]+)', content)
+            date_match = re.search(r'Date:\s*([^\n\r]+)', content)
+
+            component = component_match.group(1).strip() if component_match else ""
 
             metadata = {
-                "title": "Спецификация" if title_match else "",
+                "fileName": file_name,
+                "title": f"Specification of the {component} " if title_match and component else "",
                 "version": version_match.group(1).strip() if version_match else "",
                 "component": component_match.group(1).strip() if component_match else "",
                 "overview": overview_match.group(1).strip() if overview_match else "",
-                "author": author_match.group(1).strip() if author_match else "",
+                "author": author_match.group(1).strip() if author_match else "PeerF LLC",
                 "date": date_match.group(1).strip() if date_match else ""
             }
 
-            document = {
-                "id": str(uuid.uuid4()),
-                "content": content,
-                "metadata": metadata
-            }
+            # Splitting the content into chunks
+            chunks = chunk_text(content)
 
-            documents.append(document)
+            for i, chunk in enumerate(chunks):
+                chunk_document = {
+                    "id": str(uuid.uuid4()),
+                    "chunk_id": f"{file_name}_chunk_{i + 1}",  # удобный идентификатор
+                    "content": chunk,
+                    "metadata": metadata
+                }
+                documents.append(chunk_document)
 
-# Сохраняем в JSON
+# Saving it in JSON
 os.makedirs(json_folder, exist_ok=True)
 
 # Initialize the filename
