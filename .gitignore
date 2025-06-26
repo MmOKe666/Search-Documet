@@ -7,3 +7,4 @@ Files/json/**/*
 Files/text_files/**/*
 !Files/text_files/
 SourceDocs/*
+langchain/__pycache__/*
