@@ -20,40 +20,57 @@ load_dotenv()
 
 # Configure Streamlit page
 st.set_page_config(
-    page_title="RAG Chat with DeepSeek & Weaviate",
+    page_title="RAG Chat with OpenRouter & Weaviate",
     page_icon="🤖",
     layout="wide"
 )
 
 st.title("🤖 RAG Chat Application")
-st.markdown("*Powered by DeepSeek LLM and Weaviate Vector Database*")
+st.markdown("*Powered by OpenRouter API and Weaviate Vector Database*")
 
-# Initialize session state for chat history
+# Initialize session state variables properly
 if "messages" not in st.session_state:
     st.session_state.messages = []
+if "processed" not in st.session_state:
+    st.session_state.processed = {}
 
 # Sidebar for configuration
 with st.sidebar:
     st.header("Configuration")
     
-    # DeepSeek API configuration
-    deepseek_api_key = st.text_input(
-        "DeepSeek API Key", 
+    # OpenRouter API configuration
+    openrouter_api_key = st.text_input(
+        "OpenRouter API Key", 
         type="password", 
-        value=os.getenv("DEEPSEEK_API_KEY", ""),
-        help="Enter your DeepSeek API key"
+        value=os.getenv("OPENROUTER_API_KEY", ""),
+        help="Enter your OpenRouter API key"
+    )
+    
+    # Model selection
+    model_name = st.selectbox(
+        "Select Model",
+        [
+            "openai/gpt-4o",
+            "openai/gpt-4o-mini",
+            "anthropic/claude-3.5-sonnet",
+            "deepseek/deepseek-chat",
+            "google/gemini-pro",
+            "meta-llama/llama-3.1-8b-instruct"
+        ],
+        index=0,
+        help="Choose the model to use for chat completions"
     )
     
     # Weaviate configuration
     weaviate_url = st.text_input(
         "Weaviate URL", 
-        value="http://localhost:8080",
+        value=os.getenv("WEAVIATE_URL", "http://localhost:8080"),
         help="Weaviate instance URL"
     )
     
     collection_name = st.text_input(
         "Collection Name", 
-        value="Document",
+        value=os.getenv("WEAVIATE_COLLECTION", "Document"),
         help="Name of the Weaviate collection"
     )
     
@@ -70,21 +87,26 @@ def load_embedding_model():
         model_kwargs={'device': 'cpu'}
     )
 
-# Initialize DeepSeek LLM
+# Initialize OpenRouter LLM
 @st.cache_resource
-def load_deepseek_llm(api_key):
-    """Load and cache the DeepSeek LLM"""
-    if not api_key:
-        st.error("Please provide DeepSeek API key in the sidebar")
+def load_openrouter_llm(api_key, model):
+    """Load and cache the OpenRouter LLM"""
+    if not api_key or api_key == "your_openrouter_api_key_here":
+        st.error("❌ Please provide a valid OpenRouter API key in the sidebar")
+        st.info("💡 Get your API key from: https://openrouter.ai/")
         return None
     
-    return ChatOpenAI(
-        model="deepseek-chat",
-        openai_api_key=api_key,
-        openai_api_base="https://api.deepseek.com",
-        temperature=0.1,
-        max_tokens=2000
-    )
+    try:
+        return ChatOpenAI(
+            model=model,
+            openai_api_key=api_key,
+            openai_api_base=os.getenv("OPENROUTER_API_BASE", "https://openrouter.ai/api/v1"),
+            temperature=0.1,
+            max_tokens=2000
+        )
+    except Exception as e:
+        st.error(f"Error initializing LLM: {e}")
+        return None
 
 # Weaviate connection and query functions
 def connect_to_weaviate(url):
@@ -145,22 +167,38 @@ def query_weaviate(query_text, weaviate_url, collection_name, limit=3):
         # Convert results to LangChain documents
         documents = []
         for obj in response.objects:
+            # Safely extract properties with validation
             doc_content = obj.properties.get("content", "")
             doc_title = obj.properties.get("title", "Unknown")
             doc_metadata = obj.properties.get("metadata", {})
             
-            # Add distance to metadata
-            if hasattr(obj.metadata, 'distance'):
-                doc_metadata["distance"] = obj.metadata.distance
+            # Validate content is not empty
+            if not doc_content or not isinstance(doc_content, str):
+                doc_content = "No content available"
             
-            documents.append(Document(
-                page_content=doc_content,
+            # Validate title
+            if not doc_title or not isinstance(doc_title, str):
+                doc_title = "Unknown"
+            
+            # Ensure metadata is a dictionary
+            if not isinstance(doc_metadata, dict):
+                doc_metadata = {}
+            
+            # Get distance from metadata
+            distance = 0.0
+            if hasattr(obj.metadata, 'distance') and obj.metadata.distance is not None:
+                distance = float(obj.metadata.distance)
+            
+            # Create Document with validated fields
+            doc = Document(
+                page_content=str(doc_content),
                 metadata={
-                    "title": doc_title,
-                    "source": doc_metadata.get("source", "Unknown"),
-                    "distance": doc_metadata.get("distance", 0)
+                    "title": str(doc_title),
+                    "source": str(doc_metadata.get("source", "Unknown")),
+                    "distance": distance
                 }
-            ))
+            )
+            documents.append(doc)
         
         return documents
         
@@ -172,25 +210,19 @@ def query_weaviate(query_text, weaviate_url, collection_name, limit=3):
             client.close()
 
 # Create RAG chain
-def create_rag_chain(llm):
-    """Create the RAG chain for question answering"""
-    system_prompt = (
-        "You are a helpful AI assistant that answers questions based on the provided context. "
-        "Use the following pieces of retrieved context to answer the question. "
-        "If you don't know the answer based on the context, say that you don't know. "
-        "Be concise but comprehensive in your response. "
-        "Always cite the source when possible.\n\n"
-        "Context:\n{context}\n\n"
-        "Question: {input}\n"
+def create_simple_rag_chain(llm):
+    """Create a simple RAG chain"""
+    from langchain_core.output_parsers import StrOutputParser
+    
+    prompt = ChatPromptTemplate.from_template(
+        "You are a helpful AI assistant. Answer the question based on the provided context.\n\n"
+        "Context: {context}\n\n"
+        "Question: {input}\n\n"
         "Answer:"
     )
     
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", system_prompt),
-        ("human", "{input}"),
-    ])
-    
-    return create_stuff_documents_chain(llm, prompt)
+    chain = prompt | llm | StrOutputParser()
+    return chain
 
 # Custom retriever class for Weaviate
 class WeaviateRetriever:
@@ -200,7 +232,9 @@ class WeaviateRetriever:
         self.limit = limit
     
     def get_relevant_documents(self, query):
-        return query_weaviate(query, self.weaviate_url, self.collection_name, self.limit)
+        docs = query_weaviate(query, self.weaviate_url, self.collection_name, self.limit)
+        # Validate all returned documents
+        return [doc for doc in docs if hasattr(doc, 'page_content') and hasattr(doc, 'metadata')]
     
     def invoke(self, input_dict):
         query = input_dict.get("input", "")
@@ -210,10 +244,17 @@ class WeaviateRetriever:
 def main():
     # Load models
     embedding_model = load_embedding_model()
-    llm = load_deepseek_llm(deepseek_api_key)
+    llm = load_openrouter_llm(openrouter_api_key, model_name)
     
     if not llm:
-        st.warning("Please configure DeepSeek API key to start chatting")
+        st.warning("⚠️ Please configure a valid OpenRouter API key to start chatting")
+        st.info("📝 Steps to get started:")
+        st.markdown("""
+        1. Go to [OpenRouter](https://openrouter.ai/) and create an account
+        2. Generate an API key
+        3. Enter the API key in the sidebar
+        4. Select a model and start chatting
+        """)
         return
     
     # Display chat history
@@ -245,29 +286,60 @@ def main():
                         prompt, weaviate_url, collection_name, search_limit
                     )
                     
-                    if not relevant_docs:
+                    # Validate documents are proper Document objects
+                    valid_docs = []
+                    for doc in relevant_docs:
+                        if hasattr(doc, 'page_content') and hasattr(doc, 'metadata'):
+                            valid_docs.append(doc)
+                        else:
+                            st.warning(f"Invalid document object: {type(doc)}")
+                    
+                    if not valid_docs:
                         response = "I couldn't find any relevant documents to answer your question. Please make sure your Weaviate database contains documents and is properly configured."
                         sources = []
                     else:
-                        # Create RAG chain
-                        qa_chain = create_rag_chain(llm)
+                        # Create simple RAG chain
+                        qa_chain = create_simple_rag_chain(llm)
                         
-                        # Generate response
-                        context = "\n\n".join([doc.page_content for doc in relevant_docs])
-                        response = qa_chain.invoke({
-                            "context": context,
-                            "input": prompt
-                        })
-                        
-                        # Prepare sources for display
-                        sources = [
-                            {
-                                "title": doc.metadata.get("title", "Unknown"),
-                                "content": doc.page_content,
-                                "distance": doc.metadata.get("distance", 0)
-                            }
-                            for doc in relevant_docs
-                        ]
+                        # Generate response with validated documents
+                        try:
+                            context_parts = []
+                            for doc in valid_docs:
+                                if hasattr(doc, 'page_content') and doc.page_content:
+                                    context_parts.append(str(doc.page_content))
+                            
+                            context = "\n\n".join(context_parts)
+                            
+                            if not context:
+                                context = "No relevant content found."
+                            
+                            # Use the simple chain with just context and input as strings
+                            response = qa_chain.invoke({
+                                "context": context,
+                                "input": prompt
+                            })
+                        except Exception as ctx_error:
+                            error_msg = str(ctx_error)
+                            if "401" in error_msg or "auth" in error_msg.lower():
+                                st.error("❌ Authentication failed. Please check your OpenRouter API key.")
+                                st.info("💡 Make sure you have entered a valid API key in the sidebar.")
+                            else:
+                                st.error(f"Context generation error: {ctx_error}")
+                            response = f"Error: Please check your API key configuration."
+                            
+                        # Prepare sources for display with validation
+                        sources = []
+                        try:
+                            for doc in valid_docs:
+                                if hasattr(doc, 'page_content') and hasattr(doc, 'metadata'):
+                                    sources.append({
+                                        "title": str(doc.metadata.get("title", "Unknown")),
+                                        "content": str(doc.page_content),
+                                        "distance": float(doc.metadata.get("distance", 0.0))
+                                    })
+                        except Exception as src_error:
+                            st.error(f"Source preparation error: {src_error}")
+                            sources = []
                     
                     # Display response
                     st.markdown(response)
@@ -315,15 +387,19 @@ with st.sidebar:
     except:
         st.error("❌ Weaviate connection failed")
     
-    # Check DeepSeek API
-    if deepseek_api_key:
-        st.success("✅ DeepSeek API key configured")
+    # Check OpenRouter API
+    if openrouter_api_key and openrouter_api_key != "your_openrouter_api_key_here":
+        st.success("✅ OpenRouter API key configured")
+        st.info(f"📋 Selected Model: {model_name}")
     else:
-        st.error("❌ DeepSeek API key missing")
+        st.error("❌ OpenRouter API key missing or invalid")
+        st.info("💡 Get your API key from: https://openrouter.ai/")
+        st.code("Add your key to the sidebar or update the .env file")
     
     # Clear chat button
     if st.button("🗑️ Clear Chat History"):
         st.session_state.messages = []
+        st.session_state.processed = {}
         st.rerun()
 
 if __name__ == "__main__":

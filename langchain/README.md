@@ -1,21 +1,22 @@
-# RAG Chat Application with DeepSeek & Weaviate
+# RAG Chat Application with OpenRouter & Weaviate
 
-A sophisticated Retrieval-Augmented Generation (RAG) chat application that combines DeepSeek LLM with Weaviate vector database for intelligent document-based conversations.
+A sophisticated Retrieval-Augmented Generation (RAG) chat application that combines multiple LLMs via OpenRouter with Weaviate vector database for intelligent document-based conversations.
 
 ## Features
 
-- 🤖 **DeepSeek LLM Integration**: Powered by DeepSeek's advanced language model
+- 🤖 **Multi-LLM Support**: OpenRouter integration with GPT-4, Claude, DeepSeek, Gemini, and Llama models
 - 🔍 **Vector Search**: Uses Weaviate for efficient semantic document retrieval
 - 💬 **Interactive Chat**: Streamlit-based chat interface with conversation history
-- 📚 **Source Citations**: Shows relevant document sources for each response
+- 📚 **Source Citations**: Shows relevant document sources with similarity scores
 - ⚙️ **Configurable**: Adjustable search parameters and chunk sizes
-- 🔒 **Secure**: Environment-based API key management
+- 🔒 **Secure**: Environment-based configuration management
+- ✅ **Fixed Issues**: Resolved ScriptRunContext warnings and metadata handling errors
 
 ## Prerequisites
 
 1. **Python 3.8+**
 2. **Weaviate Database**: Running locally or remotely
-3. **DeepSeek API Key**: Get one from [DeepSeek Platform](https://platform.deepseek.com/)
+3. **OpenRouter API Key**: Get one from [OpenRouter Platform](https://openrouter.ai/)
 
 ## Installation
 
@@ -58,24 +59,84 @@ Or directly with Streamlit:
 streamlit run app_weaviate.py
 ```
 
+### App Management Commands
+
+**Start the app:**
+```bash
+# Activate virtual environment and start
+source ../3.12-env/bin/activate
+streamlit run app_weaviate.py --server.port 8501
+
+# Or run in background (headless)
+streamlit run app_weaviate.py --server.port 8501 --server.headless true &
+```
+
+**Stop the app:**
+```bash
+# Find the process ID
+ps aux | grep streamlit | grep -v grep
+
+# Kill the process (replace XXXX with actual PID)
+kill XXXX
+
+# Or kill all streamlit processes
+pkill -f streamlit
+```
+
+**Restart the app:**
+```bash
+# Stop and start in one command
+pkill -f streamlit && sleep 2 && source ../3.12-env/bin/activate && streamlit run app_weaviate.py --server.port 8501 --server.headless true &
+```
+
+**Check if app is running:**
+```bash
+# Check process
+ps aux | grep streamlit | grep -v grep
+
+# Check if port is accessible
+curl -s http://localhost:8501 | head -5
+```
+
 ### Configuration
 
 The application can be configured through the sidebar:
 
-- **DeepSeek API Key**: Your DeepSeek API key
-- **Weaviate URL**: URL of your Weaviate instance (default: http://localhost:8080)
+- **OpenRouter API Key**: Your OpenRouter API key
+- **Model Selection**: Choose from GPT-4, Claude, DeepSeek, Gemini, or Llama models
+- **Weaviate URL**: URL of your Weaviate instance (default from environment)
 - **Collection Name**: Name of the Weaviate collection containing your documents
 - **Search Parameters**: Adjust search results limit and text chunk size
 
 ### Environment Variables
 
-Create a `.env` file with the following variables:
+**⚠️ Important: You must configure your API key before using the application.**
 
-```env
-DEEPSEEK_API_KEY=your_deepseek_api_key_here
-WEAVIATE_URL=http://localhost:8080
-WEAVIATE_COLLECTION=Document
-```
+1. **Get OpenRouter API Key:**
+   - Go to [OpenRouter](https://openrouter.ai/)
+   - Create an account and generate an API key
+
+2. **Configure Environment:**
+   ```bash
+   cp .env.example .env
+   # Edit .env file and replace 'your_openrouter_api_key_here' with your actual API key
+   ```
+
+3. **Environment Variables:**
+   ```env
+   # OpenRouter API Configuration (REQUIRED)
+   OPENROUTER_API_KEY=sk-or-v1-your-actual-api-key-here
+   OPENROUTER_API_BASE=https://openrouter.ai/api/v1
+   
+   # Weaviate Configuration
+   WEAVIATE_URL=http://localhost:50051
+   WEAVIATE_COLLECTION=Document
+   
+   # Optional: Other API Keys
+   GOOGLE_API_KEY=your_google_api_key_here
+   ```
+
+**Alternative:** You can also enter the API key directly in the app's sidebar.
 
 ## Document Ingestion
 
@@ -90,8 +151,8 @@ Before using the chat application, you need to ingest documents into Weaviate. Y
 ### Components
 
 1. **Frontend**: Streamlit-based chat interface
-2. **LLM**: DeepSeek chat model via OpenAI-compatible API
-3. **Embeddings**: HuggingFace sentence-transformers
+2. **LLM**: Multiple models via OpenRouter (GPT-4, Claude, DeepSeek, etc.)
+3. **Embeddings**: HuggingFace sentence-transformers (all-MiniLM-L6-v2)
 4. **Vector Database**: Weaviate for document storage and retrieval
 5. **RAG Chain**: LangChain for orchestrating retrieval and generation
 
@@ -107,13 +168,20 @@ Before using the chat application, you need to ingest documents into Weaviate. Y
 
 ### Common Issues
 
-1. **Weaviate Connection Failed**
+1. **Authentication Error (401)**
+   - **Cause:** Missing or invalid OpenRouter API key
+   - **Solution:** 
+     - Get API key from [OpenRouter](https://openrouter.ai/)
+     - Add it to `.env` file or sidebar
+     - Restart the application
+
+2. **Weaviate Connection Failed**
    - Ensure Weaviate is running on the specified URL
    - Check if the collection exists and contains documents
 
-2. **DeepSeek API Errors**
+3. **OpenRouter API Errors**
    - Verify your API key is correct and has sufficient credits
-   - Check the API endpoint is accessible
+   - Check the selected model is available and accessible
 
 3. **Missing Dependencies**
    - Run `pip install -r requirements.txt` to install all required packages
@@ -141,16 +209,63 @@ langchain/
 └── README.md           # This file
 ```
 
+## Recent Fixes & Improvements
+
+### Fixed Issues (Latest Update)
+
+1. **ScriptRunContext Warnings**: 
+   - Added proper session state initialization
+   - Fixed `processed` dictionary initialization
+
+2. **Metadata Assignment Error**: 
+   - Fixed `'str' object does not support item assignment` error
+   - Added type checking for Weaviate metadata handling
+   - Ensured metadata is always a dictionary before assignment
+
+3. **Environment Configuration**:
+   - Moved all hardcoded URLs to environment variables
+   - Added comprehensive `.env` configuration
+   - Improved security with environment-based settings
+
+4. **Streamlit Best Practices**:
+   - Proper session state management
+   - Improved error handling and user feedback
+   - Better resource cleanup
+
+### Technical Findings
+
+- **Weaviate Metadata**: Can return strings instead of dictionaries, requiring type validation
+- **Streamlit Context**: Proper session state initialization prevents ScriptRunContext warnings
+- **LangChain Integration**: Works seamlessly with OpenRouter's OpenAI-compatible API
+- **Performance**: HuggingFace embeddings provide good balance of speed and accuracy
+
 ### Extending the Application
 
 - **Custom Embeddings**: Replace HuggingFace embeddings with other models
-- **Different LLMs**: Swap DeepSeek with other OpenAI-compatible models
-- **Enhanced UI**: Add more Streamlit components for better user experience
-- **Document Upload**: Add functionality to upload and process documents directly
+- **Additional Models**: OpenRouter supports 100+ models beyond the current selection
+- **Enhanced UI**: Add file upload, document management, and advanced search filters
+- **Multi-Collection**: Support multiple Weaviate collections for different document types
 
 ## License
 
 This project is part of the Search-Document repository and follows the same licensing terms.
+
+## Known Limitations
+
+- Requires pre-indexed documents in Weaviate
+- Limited to text-based documents
+- Session state resets on browser refresh
+- No built-in document upload functionality
+- App needs manual restart after code changes
+
+## Future Enhancements
+
+- [ ] Direct document upload and processing
+- [ ] Multi-collection support
+- [ ] Advanced search filters
+- [ ] Conversation export/import
+- [ ] Custom embedding model selection
+- [ ] Real-time document indexing
 
 ## Support
 
@@ -158,3 +273,4 @@ For issues and questions:
 1. Check the troubleshooting section above
 2. Review the existing scripts in the parent directory
 3. Ensure all prerequisites are properly configured
+4. Verify environment variables are correctly set
