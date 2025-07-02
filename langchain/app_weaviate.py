@@ -1,22 +1,27 @@
-import streamlit as st
-import time
+
+# inspired by https://github.com/AarohiSingla/Generative_AI/blob/main/L-8/gemini_rag_demo/app1.py
+# author Nikolay ILYIN
+
 import os
-from langchain_community.document_loaders import PyPDFLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.chat_models import ChatOpenAI
-from langchain.chains import create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.documents import Document
 import weaviate
 from weaviate.classes.query import MetadataQuery
-from transformers import AutoTokenizer, AutoModel
-import torch
+import logging
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)  # You can set the level to INFO, WARNING, etc., as needed.
+# Create a logger
+logger = logging.getLogger(__name__)
+
+# Import streamlit (missing import statement)
+import streamlit as st
 
 # Configure Streamlit page
 st.set_page_config(
@@ -83,7 +88,7 @@ with st.sidebar:
 def load_embedding_model():
     """Load and cache the embedding model"""
     return HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2",
+        model_name=os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"),
         model_kwargs={'device': 'cpu'}
     )
 
@@ -199,6 +204,9 @@ def query_weaviate(query_text, weaviate_url, collection_name, limit=3):
                 }
             )
             documents.append(doc)
+            
+            # log all documents sent for context
+            logger.debug(f"Found documents: {documents}")
         
         return documents
         
@@ -215,30 +223,18 @@ def create_simple_rag_chain(llm):
     from langchain_core.output_parsers import StrOutputParser
     
     prompt = ChatPromptTemplate.from_template(
-        "You are a helpful AI assistant. Answer the question based on the provided context.\n\n"
+        "You are a helpful AI assistant. Answer the question based on the provided context. If context does not contain the\n\n"
         "Context: {context}\n\n"
         "Question: {input}\n\n"
         "Answer:"
     )
     
+    # The | (pipe) operator creates a LangChain pipeline where data flows left to right:
+    # prompt template -> LLM -> string output parser (converts LLM response to plain string)
     chain = prompt | llm | StrOutputParser()
     return chain
 
-# Custom retriever class for Weaviate
-class WeaviateRetriever:
-    def __init__(self, weaviate_url, collection_name, limit=3):
-        self.weaviate_url = weaviate_url
-        self.collection_name = collection_name
-        self.limit = limit
-    
-    def get_relevant_documents(self, query):
-        docs = query_weaviate(query, self.weaviate_url, self.collection_name, self.limit)
-        # Validate all returned documents
-        return [doc for doc in docs if hasattr(doc, 'page_content') and hasattr(doc, 'metadata')]
-    
-    def invoke(self, input_dict):
-        query = input_dict.get("input", "")
-        return self.get_relevant_documents(query)
+
 
 # Main chat interface
 def main():
@@ -263,6 +259,7 @@ def main():
             st.markdown(message["content"])
             if "sources" in message:
                 with st.expander("📚 Sources"):
+                    # enumerate() returns (index, item) pairs starting from 1 for user-friendly numbering
                     for i, source in enumerate(message["sources"], 1):
                         st.markdown(f"**Source {i}:** {source['title']}")
                         st.markdown(f"*Distance: {source.get('distance', 'N/A'):.4f}*")
