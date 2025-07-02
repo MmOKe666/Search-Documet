@@ -71,6 +71,7 @@ for file_name in os.listdir(text_folder):
             overview_match = re.search(r'Overview\s*([\s\S]+?)(?=\n\S|\Z)', content)
             author_match = re.search(r'Author:\s*([^\n\r]+)', content)
             date_match = re.search(r'Date:\s*([^\n\r]+)', content)
+            status_match = re.search(r'Status:\s*([^\n\r]+)', content)
 
             component = component_match.group(1).strip() if component_match else ""
 
@@ -81,7 +82,8 @@ for file_name in os.listdir(text_folder):
                 "component": component_match.group(1).strip() if component_match else "",
                 "overview": overview_match.group(1).strip() if overview_match else "",
                 "author": author_match.group(1).strip() if author_match else "PeerF LLC",
-                "date": date_match.group(1).strip() if date_match else ""
+                "date": date_match.group(1).strip() if date_match else "",
+                "type": status_match.group(1).strip() if status_match else ""
             }
 
             # Splitting the content into chunks

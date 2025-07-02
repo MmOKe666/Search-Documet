@@ -13,13 +13,14 @@ except Exception as e:
     exit()
 
 # Название коллекции
-collection_name = "documents"
+collection_name = "Document"
 
 # Получаем все документы с полями content и metadata
 scroll_result, _ = client.scroll(
     collection_name=collection_name,
     limit=100,
-    with_payload=True
+    with_payload=True,  # Загружаем все поля payload
+    with_vectors=False  # Если не нужны векторы
 )
 
 # Форматируем результат
