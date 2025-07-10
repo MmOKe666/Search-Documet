@@ -161,20 +161,29 @@ def query_weaviate(query_text, weaviate_url, collection_name, limit=3):
         if not query_vector:
             return []
         
-        # Perform vector search
+        # Perform vector search - return all properties to see what's available
         response = collection.query.near_vector(
             near_vector=query_vector,
             limit=limit,
-            return_metadata=MetadataQuery(distance=True),
-            return_properties=["title", "content", "metadata"]
+            return_metadata=MetadataQuery(distance=True)
+            # Removed return_properties to get all available properties
         )
         
         # Convert results to LangChain documents
         documents = []
         for obj in response.objects:
-            # Safely extract properties with validation
+            # Debug: log all available properties
+            logger.debug(f"Available properties: {list(obj.properties.keys())}")
+            
+            # Use the content property directly from Weaviate
             doc_content = obj.properties.get("content", "")
-            doc_title = obj.properties.get("title", "Unknown")
+            
+            # Debug: log the actual content length and first 100 chars
+            logger.debug(f"Content length: {len(doc_content)}, First 100 chars: {doc_content[:100]}")
+            
+            doc_title = (obj.properties.get("title") or 
+                        obj.properties.get("name") or "Unknown")
+            
             doc_metadata = obj.properties.get("metadata", {})
             
             # Validate content is not empty
@@ -205,8 +214,8 @@ def query_weaviate(query_text, weaviate_url, collection_name, limit=3):
             )
             documents.append(doc)
             
-            # log all documents sent for context
-            logger.debug(f"Found documents: {documents}")
+            # Log document info without full content to avoid log spam
+            logger.debug(f"Document added - Title: {doc_title}, Content length: {len(str(doc_content))}")
         
         return documents
         
@@ -223,7 +232,7 @@ def create_simple_rag_chain(llm):
     from langchain_core.output_parsers import StrOutputParser
     
     prompt = ChatPromptTemplate.from_template(
-        "You are a helpful AI assistant. Answer the question based on the provided context. If context does not contain the\n\n"
+        "You are a helpful AI assistant. Answer the question based on the provided context. If context does not contain the requested information, just say 'I don't have enough information to answer this question.'\n\n"
         "Context: {context}\n\n"
         "Question: {input}\n\n"
         "Answer:"
@@ -263,7 +272,12 @@ def main():
                     for i, source in enumerate(message["sources"], 1):
                         st.markdown(f"**Source {i}:** {source['title']}")
                         st.markdown(f"*Distance: {source.get('distance', 'N/A'):.4f}*")
-                        st.markdown(f"```\n{source['content'][:200]}...\n```")
+                        # Show full content with toggle
+                        if st.button(f"Show full content of Source {i}", key=f"hist_src_{i}_{len(st.session_state.messages)}"):
+                            st.text(source['content'])
+                        else:
+                            content_preview = source['content'][:200] + ("..." if len(source['content']) > 200 else "")
+                            st.markdown(f"```\n{content_preview}\n```")
     
     # Chat input
     if prompt := st.chat_input("Ask me anything about your documents..."):
@@ -310,6 +324,9 @@ def main():
                             if not context:
                                 context = "No relevant content found."
                             
+                            # Debug: Log the full context being sent to LLM
+                            logger.debug(f"Full context sent to LLM (length: {len(context)}): {context}")
+                            
                             # Use the simple chain with just context and input as strings
                             response = qa_chain.invoke({
                                 "context": context,
@@ -347,7 +364,12 @@ def main():
                             for i, source in enumerate(sources, 1):
                                 st.markdown(f"**Source {i}:** {source['title']}")
                                 st.markdown(f"*Distance: {source.get('distance', 'N/A'):.4f}*")
-                                st.markdown(f"```\n{source['content'][:200]}...\n```")
+                                # Show full content with toggle
+                                if st.button(f"Show full content of Source {i}", key=f"curr_src_{i}"):
+                                    st.text(source['content'])
+                                else:
+                                    content_preview = source['content'][:200] + ("..." if len(source['content']) > 200 else "")
+                                    st.markdown(f"```\n{content_preview}\n```")
                     
                     # Add assistant response to chat history
                     st.session_state.messages.append({
