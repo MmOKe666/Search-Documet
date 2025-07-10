@@ -10,15 +10,17 @@ import uuid
 json_folder = os.path.normpath("../Files/json")
 json_path = os.path.join(json_folder, "documentation_mapping.json")
 
+# Загрузка модели для векторизации
+tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
+model = AutoModel.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
+
 # Подключение к Qdrant
 qdrant = QdrantClient(host="localhost", port=6333)
 
 # Название коллекции
-collection_name = "documents"
+collection_name = "Document"
 
-# Загрузка модели для векторизации
-tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
-model = AutoModel.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
+
 
 # Проверка и создание коллекции
 if not qdrant.collection_exists(collection_name=collection_name):

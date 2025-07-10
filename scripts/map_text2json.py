@@ -72,7 +72,9 @@ for file_name in os.listdir(text_folder):
             author_match = re.search(r'Author:\s*([^\n\r]+)', content)
             date_match = re.search(r'Date:\s*([^\n\r]+)', content)
             status_match = re.search(r'Status:\s*([^\n\r]+)', content)
+            type_match = re.search(r'\b(specification|documentation|draft)\b', content, re.IGNORECASE)
 
+            doc_type = type_match.group(1).lower() if type_match else "unknown"
             component = component_match.group(1).strip() if component_match else ""
 
             metadata = {
@@ -83,7 +85,7 @@ for file_name in os.listdir(text_folder):
                 "overview": overview_match.group(1).strip() if overview_match else "",
                 "author": author_match.group(1).strip() if author_match else "PeerF LLC",
                 "date": date_match.group(1).strip() if date_match else "",
-                "type": status_match.group(1).strip() if status_match else ""
+                "status": status_match.group(1).strip() if status_match else ""
             }
 
             # Splitting the content into chunks
@@ -92,7 +94,8 @@ for file_name in os.listdir(text_folder):
             for i, chunk in enumerate(chunks):
                 chunk_document = {
                     "id": str(uuid.uuid4()),
-                    "chunk_id": f"{file_name}_chunk_{i + 1}",  # удобный идентификатор
+                    "chunk_id": f"{file_name}_chunk_{i + 1}",
+                    "type": doc_type,
                     "content": chunk,
                     "metadata": metadata
                 }
