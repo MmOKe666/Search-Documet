@@ -104,3 +104,6 @@ We add the API key here (HUGGINGFAC_APIKEY: sk-foobar). I test it with “micros
 
 # activate venv
 % source 3.12-env/bin/activate
+
+# kill streamlit process
+pkill -f streamlit && sleep 2 && source 3.12-env/bin/activate && cd langchain && streamlit run app_weaviate.py --server.port 8501 --server.headless true &
