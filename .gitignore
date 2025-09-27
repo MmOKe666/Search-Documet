@@ -8,3 +8,5 @@ Files/text_files/**/*
 !Files/text_files/
 SourceDocs/*
 langchain/__pycache__/*
+logs
+logs/*.log
