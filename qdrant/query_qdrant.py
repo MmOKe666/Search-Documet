@@ -19,6 +19,8 @@ def vectorize_text(text):
         embeddings = outputs.last_hidden_state.mean(dim=1).numpy()[0]
     return embeddings.tolist()
 
+
+
 # Функция запроса к Qdrant
 def query_qdrant(query_text):
     try:
@@ -29,6 +31,9 @@ def query_qdrant(query_text):
         if not client.collection_exists(collection_name=collection_name):
             print(f"Error: Коллекция '{collection_name}' не найдена в Qdrant.")
             return []
+
+        collection_info = client.get_collection(collection_name)
+        print("Параметры коллекции:", collection_info.config.params)
 
         # Векторизация запроса
         query_vector = vectorize_text(query_text)

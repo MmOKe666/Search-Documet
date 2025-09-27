@@ -72,7 +72,7 @@ for file_name in os.listdir(text_folder):
             author_match = re.search(r'Author:\s*([^\n\r]+)', content)
             date_match = re.search(r'Date:\s*([^\n\r]+)', content)
             status_match = re.search(r'Status:\s*([^\n\r]+)', content)
-            type_match = re.search(r'\b(specification|documentation|draft)\b', content, re.IGNORECASE)
+            type_match = re.search(r'\b(specification|documentation|user guide|example|)\b', content, re.IGNORECASE)
 
             doc_type = type_match.group(1).lower() if type_match else "unknown"
             component = component_match.group(1).strip() if component_match else ""
