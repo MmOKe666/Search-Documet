@@ -5,11 +5,15 @@ import json
 import os
 
 # Пути к папкам
-json_folder = "C:/Савелий Волкович/python/prog/Files/json"
+json_folder = "C:/Savelii Volkovich/python/prog/Files/json"
 json_path = os.path.join(json_folder, "documentation_mapping.json")
 
 # Подключение к Weaviate
-client = weaviate.Client("http://localhost:8080")
+client = weaviate.connect_to_local(
+    host="localhost",
+    port=8080,
+    grpc_port=50051
+)
 
 # Загрузка модели для векторизации
 tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
@@ -38,12 +42,12 @@ class_obj = {
     ]
 }
 
-existing_schema = client.schema.get()
-if not any(c["class"] == "Document" for c in existing_schema.get("classes", [])):
-    client.schema.create_class(class_obj)
-    print("✅ Класс Document создан")
-else:
+try:
+    client.collections.get("Document")
     print("ℹ️ Класс Document уже существует")
+except weaviate.exceptions.WeaviateQueryError:
+    client.collections.create_from_dict(class_obj)
+    print("✅ Класс Document создан")
 
 def embed_and_store(text, metadata):
     # Векторизация текста
@@ -53,13 +57,13 @@ def embed_and_store(text, metadata):
         embeddings = model(**inputs).last_hidden_state.mean(dim=1).numpy()[0]
 
     # Загрузка в Weaviate
-    client.data_object.create(
-        data_object={
+    documents = client.collections.get("Document")
+    documents.data.insert(
+        properties={
             "content": text,
             "title": metadata.get("title"),
             "metadata": json.dumps(metadata, ensure_ascii=False)
         },
-        class_name="Document",
         vector=embeddings.tolist()
     )
 

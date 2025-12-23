@@ -1,4 +1,3 @@
-
 # inspired by https://github.com/AarohiSingla/Generative_AI/blob/main/L-8/gemini_rag_demo/app1.py
 # author Nikolay ILYIN
 
@@ -11,6 +10,10 @@ import weaviate
 from weaviate.classes.query import MetadataQuery
 import logging
 from dotenv import load_dotenv
+from typing import TypedDict, List
+from langgraph.graph import StateGraph, END
+from typing import Any
+
 
 # Load environment variables
 load_dotenv()
@@ -22,6 +25,15 @@ logger = logging.getLogger(__name__)
 
 # Import streamlit (missing import statement)
 import streamlit as st
+
+class RAGState(TypedDict):
+    question: str
+    documents: List[Document]
+    context: str
+    answer: str
+    sources: List[dict]
+    llm: Any
+    search_alpha: float
 
 # Configure Streamlit page
 st.set_page_config(
@@ -81,6 +93,19 @@ with st.sidebar:
             value=os.getenv("OPENROUTER_MODEL", "openai/gpt-3.5-turbo")
         )
 
+    search_mode = st.selectbox(
+        "Search mode",
+        ["Hybrid", "Vector", "BM25"],
+        index=0
+    )
+
+    if search_mode == "Vector":
+        alpha = 0.0
+    elif search_mode == "BM25":
+        alpha = 1.0
+    else:
+        alpha = 0.5
+
     # Weaviate configuration
     weaviate_url = st.text_input(
         "Weaviate URL",
@@ -98,6 +123,7 @@ with st.sidebar:
     search_limit = st.slider("Search Results Limit", 1, 10, 3)
     chunk_size = st.slider("Text Chunk Size", 500, 2000, 1000)
 
+
 # Initialize embedding model
 @st.cache_resource
 def load_embedding_model():
@@ -107,55 +133,6 @@ def load_embedding_model():
         model_kwargs={'device': 'cpu'}
     )
 
-# Initialize OpenRouter LLM
-# @st.cache_resource
-# def load_openrouter_llm(api_key, model):
-#     """Load and cache the OpenRouter LLM"""
-#     if not api_key or api_key == "your_openrouter_api_key_here":
-#         st.error("❌ Please provide a valid OpenRouter API key in the sidebar")
-#         st.info("💡 Get your API key from: https://openrouter.ai/")
-#         return None
-#
-#     try:
-#         return ChatOpenAI(
-#             model=model,
-#             openai_api_key=api_key,
-#             openai_api_base=os.getenv("OPENROUTER_API_BASE", "https://openrouter.ai/api/v1"),
-#             temperature=0.1,
-#             max_tokens=2000
-#         )
-#     except Exception as e:
-#         st.error(f"Error initializing LLM: {e}")
-#         return None
-
-# Initialize Yandex Cloud LLM
-# @st.cache_resource
-# def load_yandex_llm(api_key, model, folder_id):
-#     """Load and cache the Yandex Cloud LLM"""
-#     if not api_key:
-#         st.error("❌ Please provide a valid Yandex Cloud API key")
-#         return None
-#     if not folder_id:
-#         st.error("❌ Please provide a valid Yandex Cloud Folder ID")
-#         return None
-#
-#     try:
-#         from langchain_community.llms import YandexGPT
-#         return YandexGPT(
-#             model_name=model,
-#             api_key=api_key,
-#             folder_id=folder_id,
-#             temperature=0.1,
-#             max_tokens=2000
-#         )
-#     except ImportError:
-#         st.error("YandexGPT not available. Install: pip install yandex-cloud-ai")
-#         return None
-#     except Exception as e:
-#         st.error(f"Error initializing Yandex LLM: {e}")
-#         return None
-
-@st.cache_resource
 def load_llm(provider: str, model: str, **kwargs):
     try:
         if provider == "Yandex Cloud":
@@ -197,6 +174,7 @@ def load_llm(provider: str, model: str, **kwargs):
         st.error(f"Error initializing {provider} LLM: {e}")
         return None
 
+
 # Weaviate connection and query functions
 def connect_to_weaviate(url):
     """Connect to Weaviate instance"""
@@ -214,6 +192,7 @@ def connect_to_weaviate(url):
         st.error(f"Failed to connect to Weaviate: {e}")
         return None
 
+
 def vectorize_text_with_model(text, embedding_model):
     """Vectorize text using the embedding model"""
     try:
@@ -223,25 +202,32 @@ def vectorize_text_with_model(text, embedding_model):
         st.error(f"Error vectorizing text: {e}")
         return None
 
-def query_weaviate(query_text, weaviate_url, collection_name, limit=3):
+
+def query_weaviate(
+    query_text: str,
+    weaviate_url: str,
+    collection_name: str,
+    limit: int = 3,
+    alpha: float = 0.5
+):
     """Query Weaviate for similar documents"""
     try:
         client = connect_to_weaviate(weaviate_url)
         if not client:
             return []
-        
+
         # Check if collection exists
         if not client.collections.exists(collection_name):
             st.error(f"Collection '{collection_name}' does not exist in Weaviate")
             return []
-        
+
         # Get the collection
         collection = client.collections.get(collection_name)
-        
+
         # Vectorize the query
         embedding_model = load_embedding_model()
         query_vector = vectorize_text_with_model(query_text, embedding_model)
-        
+
         if not query_vector:
             return []
 
@@ -259,45 +245,45 @@ def query_weaviate(query_text, weaviate_url, collection_name, limit=3):
         response = collection.query.hybrid(
             query=query_text,  # request text
             vector=query_vector,  # query vector (for semantic components)
-            alpha=0.5,  # balance: 0.5 = mixed search, 0 - sematic, 1 - BM25
+            alpha=alpha,  # balance: 0.5 = mixed search, 0 - sematic, 1 - BM25
             limit=limit,
             return_metadata=MetadataQuery(distance=True)
         )
-        
+
         # Convert results to LangChain documents
         documents = []
         for obj in response.objects:
             # Debug: log all available properties
             logger.debug(f"Available properties: {list(obj.properties.keys())}")
-            
+
             # Use the content property directly from Weaviate
             doc_content = obj.properties.get("content", "")
-            
+
             # Debug: log the actual content length and first 100 chars
             logger.debug(f"Content length: {len(doc_content)}, First 100 chars: {doc_content[:100]}")
-            
-            doc_title = (obj.properties.get("title") or 
-                        obj.properties.get("name") or "Unknown")
-            
+
+            doc_title = (obj.properties.get("title") or
+                         obj.properties.get("name") or "Unknown")
+
             doc_metadata = obj.properties.get("metadata", {})
-            
+
             # Validate content is not empty
             if not doc_content or not isinstance(doc_content, str):
                 doc_content = "No content available"
-            
+
             # Validate title
             if not doc_title or not isinstance(doc_title, str):
                 doc_title = "Unknown"
-            
+
             # Ensure metadata is a dictionary
             if not isinstance(doc_metadata, dict):
                 doc_metadata = {}
-            
+
             # Get distance from metadata
             distance = 0.0
             if hasattr(obj.metadata, 'distance') and obj.metadata.distance is not None:
                 distance = float(obj.metadata.distance)
-            
+
             # Create Document with validated fields
             doc = Document(
                 page_content=str(doc_content),
@@ -308,12 +294,12 @@ def query_weaviate(query_text, weaviate_url, collection_name, limit=3):
                 }
             )
             documents.append(doc)
-            
+
             # Log document info without full content to avoid log spam
             logger.debug(f"Document added - Title: {doc_title}, Content length: {len(str(doc_content))}")
-        
+
         return documents
-        
+
     except Exception as e:
         st.error(f"Error querying Weaviate: {e}")
         return []
@@ -321,24 +307,80 @@ def query_weaviate(query_text, weaviate_url, collection_name, limit=3):
         if 'client' in locals() and client:
             client.close()
 
-# Create RAG chain
-def create_simple_rag_chain(llm):
-    """Create a simple RAG chain"""
-    from langchain_core.output_parsers import StrOutputParser
-    
+MAX_CONTEXT_CHARS = 6000
+
+def retrieve_docs(state: RAGState):
+    docs = query_weaviate(
+        state["question"],
+        weaviate_url,
+        collection_name,
+        search_limit,
+        alpha = state["search_alpha"]
+    )
+    return {"documents": docs}
+
+
+def build_context(state: RAGState):
+    context_parts = []
+    sources = []
+
+    for doc in state["documents"]:
+        distance = doc.metadata.get("distance", 1.0)
+
+        if distance <= 0.8:
+            content = str(doc.page_content)
+            context_parts.append(content)
+
+            sources.append({
+                "title": str(doc.metadata.get("title", "Unknown")),
+                "content": content,
+                "distance": float(distance)
+            })
+
+    context = "\n\n".join(context_parts)
+    context = context[:MAX_CONTEXT_CHARS]
+
+    if not context:
+        context = "No relevant content found."
+
+    return {
+        "context": context,
+        "sources": sources
+    }
+
+
+def generate_answer(state: RAGState):
     prompt = ChatPromptTemplate.from_template(
-        "You are a helpful AI assistant. Answer the question based on the provided context. If context does not contain the requested information, just say 'I don't have enough information to answer this question.'\n\n"
-        "Context: {context}\n\n"
-        "Question: {input}\n\n"
+        "You are a helpful AI assistant. Answer the question based on the provided context. "
+        "If context does not contain the requested information, say "
+        "'I don't have enough information to answer this question.'\n\n"
+        "Context:\n{context}\n\n"
+        "Question:\n{question}\n\n"
         "Answer:"
     )
-    
-    # The | (pipe) operator creates a LangChain pipeline where data flows left to right:
-    # prompt template -> LLM -> string output parser (converts LLM response to plain string)
-    chain = prompt | llm | StrOutputParser()
-    return chain
+
+    chain = prompt | state["llm"]
+    answer = chain.invoke({
+        "context": state["context"],
+        "question": state["question"]
+    })
+
+    return {"answer": answer}
 
 
+def build_rag_graph():
+    graph = StateGraph(RAGState)
+
+    graph.add_node("retrieve", retrieve_docs)
+    graph.add_node("context", build_context)
+    graph.add_node("generate", generate_answer)
+
+    graph.set_entry_point("retrieve")
+    graph.add_edge("retrieve", "context")
+    graph.add_edge("context", "generate")
+    graph.add_edge("generate", END)
+
+    return graph.compile()
 
 # Main chat interface
 def main():
@@ -369,7 +411,9 @@ def main():
            5. Enter the credentials in the sidebar
            """)
         return
-    
+
+    rag_app = build_rag_graph()
+
     # Display chat history
     for message_index, message in enumerate(st.session_state.messages):
         with st.chat_message(message["role"]):
@@ -392,87 +436,29 @@ def main():
                         else:
                             content_preview = source['content'][:200] + ("..." if len(source['content']) > 200 else "")
                             st.markdown(f"```\n{content_preview}\n```")
-    
+
     # Chat input
     if prompt := st.chat_input("Ask me anything about your documents..."):
         # Add user message to chat history
         st.session_state.messages.append({"role": "user", "content": prompt})
-        
+
         # Display user message
         with st.chat_message("user"):
             st.markdown(prompt)
-        
+
         # Generate response
         with st.chat_message("assistant"):
             with st.spinner("Searching documents and generating response..."):
                 try:
-                    # Query Weaviate for relevant documents
-                    relevant_docs = query_weaviate(
-                        prompt, weaviate_url, collection_name, search_limit
-                    )
-                    
-                    # Validate documents are proper Document objects
-                    valid_docs = []
-                    for doc in relevant_docs:
-                        if hasattr(doc, 'page_content') and hasattr(doc, 'metadata'):
-                            valid_docs.append(doc)
-                        else:
-                            st.warning(f"Invalid document object: {type(doc)}")
-                    
-                    if not valid_docs:
-                        response = "I couldn't find any relevant documents to answer your question. Please make sure your Weaviate database contains documents and is properly configured."
-                        sources = []
-                    else:
-                        # Create simple RAG chain
-                        qa_chain = create_simple_rag_chain(llm)
-                        
-                        # Generate response with validated documents
-                        try:
-                            context_parts = []
-                            for doc in valid_docs:
-                                if doc.metadata.get("distance", 1.0) <= 0.8:
-                                    context_parts.append(str(doc.page_content))
+                    result = rag_app.invoke({
+                        "question": prompt,
+                        "llm": llm,
+                        "search_alpha": alpha
+                    })
 
-                            MAX_CONTEXT_CHARS = 6000
+                    response = result["answer"]
+                    sources = result.get("sources", [])
 
-                            context = "\n\n".join(context_parts)
-                            context = context[:MAX_CONTEXT_CHARS]
-                            
-                            if not context:
-                                context = "No relevant content found."
-                            
-                            # Debug: Log the full context being sent to LLM
-                            logger.debug(f"Full context sent to LLM (length: {len(context)}): {context}")
-                            
-                            # Use the simple chain with just context and input as strings
-                            response = qa_chain.invoke({
-                                "context": context,
-                                "input": prompt
-                            })
-                        except Exception as ctx_error:
-                            error_msg = str(ctx_error)
-                            if "401" in error_msg or "auth" in error_msg.lower():
-                                st.error(f"❌ Authentication failed. Please check your {llm_provider} API key")
-                                st.info("💡 Make sure you have entered a valid API key in the sidebar.")
-                            else:
-                                st.error(f"Context generation error: {ctx_error}")
-                            response = f"Error: Please check your API key configuration."
-                            
-                        # Prepare sources for display with validation
-                        sources = []
-                        try:
-                            for doc in valid_docs:
-                                if hasattr(doc, 'page_content') and hasattr(doc, 'metadata'):
-                                    sources.append({
-                                        "title": str(doc.metadata.get("title", "Unknown")),
-                                        "content": str(doc.page_content),
-                                        "distance": float(doc.metadata.get("distance", 0.0))
-                                    })
-                        except Exception as src_error:
-                            st.error(f"Source preparation error: {src_error}")
-                            sources = []
-                    
-                    # Display response
                     st.markdown(response)
 
                     st.session_state.messages.append({
@@ -480,35 +466,9 @@ def main():
                         "content": response,
                         "sources": sources
                     })
-                    
-                    # Display sources
-                    if sources:
-                        with st.expander("📚 Sources"):
-                            for i, source in enumerate(sources, 1):
-                                st.markdown(f"**Source {i}:** {source['title']}")
-                                st.markdown(f"*Distance: {source.get('distance', 'N/A'):.4f}*")
 
-                                # Используем чекбокс для показа полного контента
-                                show_full = st.checkbox(f"Show full content of Source {i}",
-                                                        key=f"curr_check_{i}")
-
-                                if show_full:
-                                    st.text_area("",
-                                                 value=source['content'],
-                                                 height=200,
-                                                 key=f"curr_content_{i}")
-                                else:
-                                    content_preview = source['content'][:200] + (
-                                        "..." if len(source['content']) > 200 else "")
-                                    st.markdown(f"```\n{content_preview}\n```")
-                    
                 except Exception as e:
-                    error_msg = f"An error occurred: {str(e)}"
-                    st.error(error_msg)
-                    st.session_state.messages.append({
-                        "role": "assistant", 
-                        "content": error_msg
-                    })
+                    st.error(f"An error occurred: {e}")
 
 
 # Sidebar status
@@ -559,7 +519,6 @@ with st.sidebar:
             if key.startswith(('hist_check_', 'curr_check_')):
                 del st.session_state[key]
         st.rerun()
-
 
 if __name__ == "__main__":
     main()
