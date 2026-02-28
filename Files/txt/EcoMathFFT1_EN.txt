@@ -1,0 +1,54 @@
+
+Specification
+Component: IEcoMathFFT1
+Status: Draft
+Date: November 8, 2021
+Version: 1.0
+
+
+
+
+Overview
+This document describes the requirements for the implementation of the EcoMathFFT1 component.
+Introduction
+Description.
+
+Note
+Keywords
+
+
+Links
+ This paragraph contains links to information to help you understand this document: 
+[] – name of the link
+Available by: http://address
+
+ Eco.MathFFT1 Component
+
+The Eco.MathFFT1 component 
+The component has the following description:
+
+
+IEcoMathFFT1 IDL
+
+
+
+fft function
+
+The function returns the Fourier transform along the dimension **Y.
+ifft function
+
+The function returns the inverse Fourier transform along the dimension **Y.
+fft2 function
+
+The function truncates *X or pads *X with trailing zeros to form an M-by-N matrix before computing the transform.
+ifft2 function
+
+The function 
+
+Error codes
+
+The following table contains the error codes.
+
+
+
+Appendix A: Training programs

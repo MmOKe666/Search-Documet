@@ -6,6 +6,7 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.chat_models import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.documents import Document
+from sentence_transformers import CrossEncoder
 import weaviate
 from weaviate.classes.query import MetadataQuery
 import logging
@@ -54,74 +55,6 @@ if "processed" not in st.session_state:
 openrouter_api_key = None
 yandex_api_key = None
 yandex_folder_id = None
-# Sidebar for configuration
-with st.sidebar:
-    st.header("Configuration")
-
-    llm_provider = st.selectbox(
-        "LLM Provider",
-        ["Yandex Cloud", "OpenRouter"],
-        index=0
-    )
-
-    if llm_provider == "Yandex Cloud":
-        yandex_api_key = st.text_input(
-            "Yandex Cloud API Key",
-            type="password",
-            value=os.getenv("YANDEX_API_KEY", "")
-        )
-
-        yandex_folder_id = st.text_input(
-            "Yandex Cloud Folder ID",
-            value=os.getenv("YANDEX_FOLDER_ID", "")
-        )
-
-        model_name = st.selectbox(
-            "Yandex Model",
-            ["yandexgpt", "yandexgpt-lite", "summarize"]
-        )
-
-    elif llm_provider == "OpenRouter":
-        openrouter_api_key = st.text_input(
-            "OpenRouter API Key",
-            type="password",
-            value=os.getenv("OPENROUTER_API_KEY", "")
-        )
-
-        model_name = st.text_input(
-            "OpenRouter Model",
-            value=os.getenv("OPENROUTER_MODEL", "openai/gpt-3.5-turbo")
-        )
-
-    search_mode = st.selectbox(
-        "Search mode",
-        ["Hybrid", "Vector", "BM25"],
-        index=0
-    )
-
-    if search_mode == "Vector":
-        alpha = 0.0
-    elif search_mode == "BM25":
-        alpha = 1.0
-    else:
-        alpha = 0.5
-
-    # Weaviate configuration
-    weaviate_url = st.text_input(
-        "Weaviate URL",
-        value=os.getenv("WEAVIATE_URL", "http://localhost:8080"),
-        help="Weaviate instance URL"
-    )
-
-    collection_name = st.text_input(
-        "Collection Name",
-        value=os.getenv("WEAVIATE_COLLECTION", "Document"),
-        help="Name of the Weaviate collection"
-    )
-
-    # Search parameters
-    search_limit = st.slider("Search Results Limit", 1, 10, 3)
-    chunk_size = st.slider("Text Chunk Size", 500, 2000, 1000)
 
 
 # Initialize embedding model
@@ -132,6 +65,13 @@ def load_embedding_model():
         model_name=os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"),
         model_kwargs={'device': 'cpu'}
     )
+
+# Rerank
+@st.cache_resource
+def load_reranker():
+    return CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+
+reranker = load_reranker()
 
 def load_llm(provider: str, model: str, **kwargs):
     try:
@@ -192,120 +132,120 @@ def connect_to_weaviate(url):
         st.error(f"Failed to connect to Weaviate: {e}")
         return None
 
-
-def vectorize_text_with_model(text, embedding_model):
-    """Vectorize text using the embedding model"""
+def get_collections_list(url):
+    """Get list of all collections from Weaviate"""
+    client = None
     try:
-        embeddings = embedding_model.embed_query(text)
-        return embeddings
+        client = connect_to_weaviate(url)
+        if not client:
+            return []
+
+        collections = client.collections.list_all()
+
+        # В weaviate-client 4.x это уже список строк
+        return list(collections)
+
     except Exception as e:
-        st.error(f"Error vectorizing text: {e}")
-        return None
+        st.error(f"Error fetching collections: {e}")
+        return []
+
+    finally:
+        if client:
+            client.close()
+
+def search_single_collection(
+    client,
+    collection_name: str,
+    query_text: str,
+    query_vector: list,
+    limit: int,
+    alpha: float
+):
+    """Search in a single Weaviate collection"""
+
+    if not client.collections.exists(collection_name):
+        return []
+
+    collection = client.collections.get(collection_name)
+
+    response = collection.query.hybrid(
+        query=query_text,
+        vector=query_vector,
+        alpha=alpha,
+        limit=limit,
+        return_metadata=MetadataQuery(distance=True)
+    )
+
+    results = []
+
+    for obj in response.objects:
+
+        content = obj.properties.get("content") or ""
+        title = obj.properties.get("title") or "Unknown"
+
+        distance = 1.0
+        if hasattr(obj.metadata, "distance") and obj.metadata.distance is not None:
+            distance = float(obj.metadata.distance)
+
+        doc = Document(
+            page_content=str(content),
+            metadata={
+                "title": str(title),
+                "distance": distance,
+                "collection": collection_name
+            }
+        )
+
+        results.append(doc)
+
+    return results
 
 
 def query_weaviate(
     query_text: str,
     weaviate_url: str,
-    collection_name: str,
+    collection_names: list,
     limit: int = 3,
     alpha: float = 0.5
 ):
-    """Query Weaviate for similar documents"""
+    """Search across multiple Weaviate collections"""
+
+    if not collection_names:
+        return []
+
+    client = connect_to_weaviate(weaviate_url)
+    if not client:
+        return []
+
     try:
-        client = connect_to_weaviate(weaviate_url)
-        if not client:
-            return []
-
-        # Check if collection exists
-        if not client.collections.exists(collection_name):
-            st.error(f"Collection '{collection_name}' does not exist in Weaviate")
-            return []
-
-        # Get the collection
-        collection = client.collections.get(collection_name)
-
-        # Vectorize the query
         embedding_model = load_embedding_model()
-        query_vector = vectorize_text_with_model(query_text, embedding_model)
+        query_vector = embedding_model.embed_query(query_text)
 
-        if not query_vector:
-            return []
+        all_results = []
 
-        # Perform vector search - return all properties to see what's available
-
-        # Semantic search
-        # response = collection.query.near_vector(
-        #     near_vector=query_vector,
-        #     limit=limit,
-        #     return_metadata=MetadataQuery(distance=True)
-        #     # Removed return_properties to get all available properties
-        # )
-
-        # Hybrid search
-        response = collection.query.hybrid(
-            query=query_text,  # request text
-            vector=query_vector,  # query vector (for semantic components)
-            alpha=alpha,  # balance: 0.5 = mixed search, 0 - sematic, 1 - BM25
-            limit=limit,
-            return_metadata=MetadataQuery(distance=True)
-        )
-
-        # Convert results to LangChain documents
-        documents = []
-        for obj in response.objects:
-            # Debug: log all available properties
-            logger.debug(f"Available properties: {list(obj.properties.keys())}")
-
-            # Use the content property directly from Weaviate
-            doc_content = obj.properties.get("content", "")
-
-            # Debug: log the actual content length and first 100 chars
-            logger.debug(f"Content length: {len(doc_content)}, First 100 chars: {doc_content[:100]}")
-
-            doc_title = (obj.properties.get("title") or
-                         obj.properties.get("name") or "Unknown")
-
-            doc_metadata = obj.properties.get("metadata", {})
-
-            # Validate content is not empty
-            if not doc_content or not isinstance(doc_content, str):
-                doc_content = "No content available"
-
-            # Validate title
-            if not doc_title or not isinstance(doc_title, str):
-                doc_title = "Unknown"
-
-            # Ensure metadata is a dictionary
-            if not isinstance(doc_metadata, dict):
-                doc_metadata = {}
-
-            # Get distance from metadata
-            distance = 0.0
-            if hasattr(obj.metadata, 'distance') and obj.metadata.distance is not None:
-                distance = float(obj.metadata.distance)
-
-            # Create Document with validated fields
-            doc = Document(
-                page_content=str(doc_content),
-                metadata={
-                    "title": str(doc_title),
-                    "source": str(doc_metadata.get("source", "Unknown")),
-                    "distance": distance
-                }
+        for collection_name in collection_names:
+            results = search_single_collection(
+                client=client,
+                collection_name=collection_name,
+                query_text=query_text,
+                query_vector=query_vector,
+                limit=limit,
+                alpha=alpha
             )
-            documents.append(doc)
 
-            # Log document info without full content to avoid log spam
-            logger.debug(f"Document added - Title: {doc_title}, Content length: {len(str(doc_content))}")
+            all_results.extend(results)
 
-        return documents
+        # Global sort by distance (smaller = more relevant)
+        all_results.sort(key=lambda doc: doc.metadata["distance"])
+
+        return all_results
 
     except Exception as e:
-        st.error(f"Error querying Weaviate: {e}")
+        st.error(f"Weaviate query error: {e}")
         return []
+
     finally:
-        if 'client' in locals() and client:
-            client.close()
+        client.close()
 
 MAX_CONTEXT_CHARS = 6000
 
@@ -313,11 +253,47 @@ def retrieve_docs(state: RAGState):
     docs = query_weaviate(
         state["question"],
         weaviate_url,
-        collection_name,
+        selected_collections,
         search_limit,
         alpha = state["search_alpha"]
     )
+    if not docs:
+        state["context"] = ""
+        state["answer"] = "⚠️ В выбранной коллекции нет документов или не найдено совпадений."
+        state["sources"] = []
+        return state
+
+    st.write(f"Найдено документов до reranking: {len(docs)}")
+
+    docs = rerank_documents(state["question"], docs, top_k=3)
+
+    st.write(f"Найдено документов после reranking: {len(docs)}")
+
+    # --- Deduplicate by title ---
+    unique_titles = set()
+    dedup_docs = []
+
+    for doc in docs:
+        title = doc.metadata.get("title", "")
+        if title not in unique_titles:
+            unique_titles.add(title)
+            dedup_docs.append(doc)
+
+    docs = dedup_docs
+
     return {"documents": docs}
+
+def rerank_documents(query, docs, top_k=3):
+    if not docs:
+        return []
+
+    pairs = [(query, doc.page_content) for doc in docs]
+    scores = reranker.predict(pairs)
+
+    scored_docs = list(zip(docs, scores))
+    scored_docs.sort(key=lambda x: x[1], reverse=True)
+
+    return [doc for doc, _ in scored_docs[:top_k]]
 
 
 def build_context(state: RAGState):
@@ -325,23 +301,24 @@ def build_context(state: RAGState):
     sources = []
 
     for doc in state["documents"]:
-        distance = doc.metadata.get("distance", 1.0)
 
-        if distance <= 0.8:
-            content = str(doc.page_content)
-            context_parts.append(content)
+        content = str(doc.page_content)
+        distance = float(doc.metadata.get("distance", 1.0))
 
-            sources.append({
-                "title": str(doc.metadata.get("title", "Unknown")),
-                "content": content,
-                "distance": float(distance)
-            })
+        context_parts.append(content)
+
+        sources.append({
+            "title": str(doc.metadata.get("title", "Unknown")),
+            "content": content,
+            "distance": distance
+        })
 
     context = "\n\n".join(context_parts)
+    st.write("----- DEBUG CONTEXT -----")
+    with st.expander("🔍 Debug Context"):
+        st.write(context)
+    st.write("-------------------------")
     context = context[:MAX_CONTEXT_CHARS]
-
-    if not context:
-        context = "No relevant content found."
 
     return {
         "context": context,
@@ -350,22 +327,43 @@ def build_context(state: RAGState):
 
 
 def generate_answer(state: RAGState):
-    prompt = ChatPromptTemplate.from_template(
-        "You are a helpful AI assistant. Answer the question based on the provided context. "
-        "If context does not contain the requested information, say "
-        "'I don't have enough information to answer this question.'\n\n"
-        "Context:\n{context}\n\n"
-        "Question:\n{question}\n\n"
-        "Answer:"
-    )
+    prompt = ChatPromptTemplate.from_template("""
+        You are a senior software documentation specialist.
+
+        Use ONLY the provided information to answer the question.
+        If the answer is not explicitly present, respond exactly with:
+        "Insufficient information available."
+        
+        Do not speculate.
+        Do not generalize beyond the given information.
+        Do not mention the source of information.
+        
+        Format the answer professionally.
+        Use bullet points where appropriate.
+        Keep the answer concise and technical.
+        
+        Information:
+        {context}
+        
+        Question:
+        {question}
+        
+        Answer:
+    """)
 
     chain = prompt | state["llm"]
-    answer = chain.invoke({
+    response = chain.invoke({
         "context": state["context"],
         "question": state["question"]
     })
 
-    return {"answer": answer}
+    # Универсальная обработка ответа
+    if hasattr(response, "content"):
+        answer_text = response.content
+    else:
+        answer_text = str(response)
+
+    return {"answer": answer_text}
 
 
 def build_rag_graph():
@@ -381,6 +379,155 @@ def build_rag_graph():
     graph.add_edge("generate", END)
 
     return graph.compile()
+
+
+# Sidebar for configuration
+with st.sidebar:
+    st.header("Configuration")
+
+    llm_provider = st.selectbox(
+        "LLM Provider",
+        ["Yandex Cloud", "OpenRouter"],
+        index=0
+    )
+
+    if llm_provider == "Yandex Cloud":
+        yandex_api_key = st.text_input(
+            "Yandex Cloud API Key",
+            type="password",
+            value=os.getenv("YANDEX_API_KEY", "")
+        )
+
+        yandex_folder_id = st.text_input(
+            "Yandex Cloud Folder ID",
+            value=os.getenv("YANDEX_FOLDER_ID", "")
+        )
+
+        model_name = st.selectbox(
+            "Yandex Model",
+            ["yandexgpt", "yandexgpt-lite", "summarize"]
+        )
+
+    elif llm_provider == "OpenRouter":
+        openrouter_api_key = st.text_input(
+            "OpenRouter API Key",
+            type="password",
+            value=os.getenv("OPENROUTER_API_KEY", "")
+        )
+
+        model_name = st.text_input(
+            "OpenRouter Model",
+            value=os.getenv("OPENROUTER_MODEL", "openai/gpt-3.5-turbo")
+        )
+
+    search_mode = st.selectbox(
+        "Search mode",
+        ["Hybrid", "Vector", "BM25"],
+        index=0
+    )
+
+    if search_mode == "Vector":
+        alpha = 0.0
+    elif search_mode == "BM25":
+        alpha = 1.0
+    else:
+        alpha = 0.5
+
+    # Weaviate configuration
+    weaviate_url = st.text_input(
+        "Weaviate URL",
+        value=os.getenv("WEAVIATE_URL", "http://localhost:8080"),
+        help="Weaviate instance URL"
+    )
+
+    available_collections = get_collections_list(weaviate_url)
+
+    if available_collections:
+
+        # --- Группировка по типу ---
+        grouped = {}
+
+        for name in available_collections:
+            doc_type = name.split("_")[0]  # Component, Guide, Specification
+            grouped.setdefault(doc_type, []).append(name)
+
+        # Сортируем типы и коллекции
+        for key in grouped:
+            grouped[key] = sorted(grouped[key])
+
+        # --- Формируем список опций ---
+        options = ["All Documents"]
+
+        for doc_type in sorted(grouped.keys()):
+            options.append(f"--- {doc_type} ---")
+            options.extend(grouped[doc_type])
+
+        selected_option = st.radio(
+            "📚 Select Collection",
+            options,
+            index=0
+        )
+
+        # --- Обработка выбора ---
+        if selected_option == "All Documents":
+            selected_collections = available_collections
+
+        elif selected_option.startswith("---"):
+            # Если пользователь нажал на заголовок типа — выбираем все внутри
+            doc_type = selected_option.replace("--- ", "").replace(" ---", "")
+            selected_collections = grouped.get(doc_type, [])
+
+        else:
+            selected_collections = [selected_option]
+
+    else:
+        st.warning("No collections found in Weaviate")
+        selected_collections = []
+
+    # Search parameters
+    search_limit = st.slider("Search Results Limit", 1, 10, 6)
+    chunk_size = st.slider("Text Chunk Size", 500, 2000, 1000)
+
+    # --- View documents inside selected collections ---
+    if selected_collections:
+        st.markdown("---")
+        st.subheader("📂 View Documents")
+
+        if st.button("Show Documents in Selected Collection(s)"):
+
+            client = None
+            try:
+                client = connect_to_weaviate(weaviate_url)
+
+                for col in selected_collections:
+                    st.markdown(f"### 📚 {col}")
+
+                    collection = client.collections.get(col)
+                    response = collection.query.fetch_objects(limit=20)
+
+                    if not response.objects:
+                        st.write("— No documents found —")
+                    else:
+                        from collections import Counter
+
+                        title_counter = Counter()
+
+                        for obj in response.objects:
+                            title = obj.properties.get("title", "No title")
+                            title_counter[title] += 1
+
+                        for title, count in title_counter.items():
+                            st.write(f"- {title} ({count} chunks)")
+
+            except Exception as e:
+                st.error(f"Error fetching documents: {e}")
+
+            finally:
+                if client:
+                    client.close()
+
+
+
 
 # Main chat interface
 def main():
@@ -477,19 +624,22 @@ with st.sidebar:
     st.subheader("Status")
 
     # Check Weaviate connection
+    client = None
     try:
         client = connect_to_weaviate(weaviate_url)
         if client:
-            if client.collections.exists(collection_name):
-                st.success(f"✅ Connected to Weaviate")
-                st.success(f"✅ Collection '{collection_name}' found")
+            if selected_collections:
+                st.success("✅ Connected to Weaviate")
+                st.info(f"📚 Selected collections: {', '.join(selected_collections)}")
             else:
-                st.warning(f"⚠️ Collection '{collection_name}' not found")
-            client.close()
+                st.warning("⚠️ No collections selected")
         else:
             st.error("❌ Cannot connect to Weaviate")
     except:
         st.error("❌ Weaviate connection failed")
+    finally:
+        if client:
+            client.close()
 
     # Check LLM API
     if llm_provider == "Yandex Cloud":

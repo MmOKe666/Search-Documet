@@ -1,0 +1,135 @@
+
+Specification
+Component: IEcoSocketP02
+Status: Draft
+Date: November 8, 2021
+Version: 1.0
+
+
+
+
+Overview
+This document describes the requirements for the implementation of the Eco.SocketP02 component.
+Introduction
+Description.
+
+Note
+Keywords
+
+Links
+This paragraph contains links to information to help you understand this document: 
+[] – name of the link
+Available by: http://address
+
+ Eco. SocketP02 Component
+
+The Eco.SocketP02 component 
+The component has the following description:
+ IEcoSocketP02 Interface
+
+ IEcoSocketP02 IDL
+
+
+
+accept function
+
+The function allows an incoming socket connection attempt.
+bind function
+
+The function associates a local address with a socket.
+connect function
+
+The function establishes a connection to the specified socket.
+getpeername function
+
+The function retrieves the address of the peer node to which the socket is connected.
+getsockname function
+
+The function retrieves the local name of the socket.
+getsockopt function
+
+The function retrieves the socket parameter.
+listen function
+
+The function places the socket in a state in which it is listening for an incoming connection.
+recv function
+
+The function receives data from a connected socket or a linked socket without establishing a connection.
+recvfrom function
+
+The function receives the datagram and stores the source address.
+
+recvmsg function
+
+The function receives messages on a socket with a socket descriptor and stores them in an array of message headers.
+recvmmsg function
+		
+Функция 
+send function
+
+The function sends data to the connected socket.
+sendto function
+
+The function sends data to a specific destination.
+sendmsg function
+
+The function sends messages to the socket.
+sendmmsg function
+
+The function sends multiple messages to a socket.
+setsockopt function
+
+The function sets the socket parameter.
+shutdown function
+
+The function disables sending or receiving data on the socket.
+sockatmark function
+
+The function determines if the socket has an out-of-band data marker.
+socket function
+
+The function creates an endpoint for communication and returns a file descriptor for the socket.
+socketpair function
+
+The function gets a pair of sockets of the specified type, which have no name and are connected in the specified domain and use the specified protocol.
+
+ IEcoINetP02 Interface
+
+IEcoINetP02 IDL
+
+
+
+htonl function
+
+The function returns the value in TCP/IP's network byte order.
+htons function
+
+The function returns the value in TCP/IP network byte order.
+ntohl function
+
+The function converts u_long from TCP/IP network byte order to host byte order.
+ntohs function
+
+The function converts u_short from TCP/IP network byte order to host byte order.
+inet_addr function
+
+The function converts a string containing a decimal IPv4 address with dots into a valid address for the IN_ADDR structure.
+inet_ntoa function
+
+The function converts an Internet address (Ipv4) to an ASCII string in standard Internet decimal format.
+inet_ntop function
+
+The function converts an IPv4 or IPv6 Internet address to a string in standard Internet format.
+inet_pton function
+
+The function converts an IPv4 or IPv6 network address in the standard text representation form to a numeric binary form.
+
+ Error codes
+
+The following table contains the error codes.
+
+
+
+Appendix A: Training programs
+
+

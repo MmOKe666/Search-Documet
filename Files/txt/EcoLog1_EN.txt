@@ -1,0 +1,166 @@
+
+Specification
+Component: IEcoLog1
+Status: Draft
+Date: November 8, 2021
+Version: 1.0
+
+
+
+
+Overview
+This document describes the requirements for the implementation of the Eco.Log1 component.
+Introduction
+Description.
+
+Note
+Keywords
+
+
+Links
+This paragraph contains links to information to help you understand this document:
+[] – name of the link
+Available by: http://address
+
+ Eco. Log1 Component
+
+The Eco.List1 component 
+The component has the following description:
+
+IEcoLog1 Interface
+
+ IEcoLog1 IDL
+
+
+
+AddAffiliate function
+
+The function
+set_LevelMask function
+
+The function
+get_LevelMask function
+
+The function
+Debug function
+
+The function
+Info function
+
+The function
+Warn function
+
+The function
+Error function
+
+The function
+Fatal function
+
+The function
+DebugFormat function
+
+The function
+
+InfoFormat function
+
+The function
+recvmmsg function
+		
+The function
+WarnFormat function
+
+The function
+ErrorFormat function
+
+The function
+FatalFormat function
+
+The function
+HexDump function
+
+The function
+BinDump function
+
+The function
+
+
+IEcoLog1Affiliate Interface
+
+IEcoLog1Affiliate IDL
+
+
+
+get_Name function
+
+The function
+get_Layout function
+
+The function
+set_Layout function
+
+The function
+Write function
+
+The function
+
+IEcoLog1Layout Interface
+
+IEcoLog1Layout IDL
+
+
+
+get_Name function
+
+The function
+Format function
+
+The function
+
+IEcoLog1ConsoleAffiliate Interface
+
+IEcoLog1ConsoleAffiliate IDL
+
+
+
+get_TargetOutput function
+
+The function
+set_TargetOutput function
+
+The function
+
+IEcoLog1FileAffiliate Interface
+
+IEcoLog1FileAffiliate IDL
+
+
+
+get_FileName function
+
+The function
+set_FileName function
+
+The function
+
+IEcoLog1SimpleLayout Interface
+
+IEcoLog1SimpleLayout IDL
+
+
+
+get_Pattern function
+
+The function
+set_Pattern function
+
+The function
+
+Error codes
+
+The following table contains the error codes.
+
+
+
+Appendix A: Training programs
+
+

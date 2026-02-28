@@ -1,0 +1,64 @@
+
+Specification
+Component: IEcoSemaphore1
+Status: Draft
+Date: November 8, 2021
+Version: 1.0
+
+
+
+
+Overview
+This document describes the requirements for the implementation of the Eco.Semaphore1 component.
+Introduction
+Description.
+
+Note
+Keywords
+
+
+Links
+ This paragraph contains links to information to help you understand this document: 
+[] – name of the link
+Available by: http://address
+
+ Eco.Semaphore1 Component
+
+The Eco.Semaphore1 component 
+The component has the following description:
+
+
+IEcoSemaphore1 IDL
+
+
+
+Init function
+
+The function initializes the unnamed semaphore at the address.
+
+InitWithName function
+
+The function 
+OpenExisting function
+
+The function creates a new POSIX semaphore or opens an existing semaphore.
+Close function
+
+The function closes the named semaphore.
+Post function
+
+The function increments (unlocks) the semaphore.
+Wait function
+
+The function decrements (locks) the semaphore.
+
+
+
+Error codes
+
+The following table contains the error codes.
+
+
+
+Appendix A: Training programs
+
