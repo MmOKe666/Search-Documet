@@ -13,7 +13,9 @@ import os
 json_folder = os.path.normpath("../Files/json")
 json_path = os.path.join(json_folder, "documentation_mapping.json")
 
-MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+MODEL_NAME = os.getenv(
+    "EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"
+)
 
 COLLECTIONS = {
     ("component", "RU"): "Component_RU",

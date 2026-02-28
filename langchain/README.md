@@ -56,7 +56,7 @@ python run_app.py
 Or directly with Streamlit:
 
 ```bash
-streamlit run app_weaviate.py
+streamlit run LangGraph_app.py
 ```
 
 ### App Management Commands
@@ -65,10 +65,10 @@ streamlit run app_weaviate.py
 ```bash
 # Activate virtual environment and start
 source ../3.12-env/bin/activate
-streamlit run app_weaviate.py --server.port 8501
+streamlit run LangGraph_app.py --server.port 8501
 
 # Or run in background (headless)
-streamlit run app_weaviate.py --server.port 8501 --server.headless true &
+streamlit run LangGraph_app.py --server.port 8501 --server.headless true &
 ```
 
 **Stop the app:**
@@ -86,7 +86,7 @@ pkill -f streamlit
 **Restart the app:**
 ```bash
 # Stop and start in one command
-pkill -f streamlit && sleep 2 && source ../3.12-env/bin/activate && streamlit run app_weaviate.py --server.port 8501 --server.headless true &
+pkill -f streamlit && sleep 2 && source ../3.12-env/bin/activate && streamlit run LangGraph_app.py --server.port 8501 --server.headless true &
 ```
 
 **Check if app is running:**

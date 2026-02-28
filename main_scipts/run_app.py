@@ -51,7 +51,7 @@ def main():
     # Run streamlit
     try:
         subprocess.run([
-            sys.executable, "-m", "streamlit", "run", "app_weaviate.py",
+            sys.executable, "-m", "streamlit", "run", "LangGraph_app.py",
             "--server.port", "8501",
             "--server.address", "localhost"
         ])
