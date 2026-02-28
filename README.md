@@ -1,34 +1,34 @@
 # Search App 🤖
 
-**Search App** — это AI-приложение для поиска информации по документам с использованием векторной базы данных Weaviate и LLM (OpenAI / OpenRouter / YandexGPT).
+**Search App** is an AI-powered application for semantic search across documents using a vector database (Weaviate) and Large Language Models (LLM) such as OpenAI, OpenRouter, or YandexGPT.
 
-Приложение позволяет:
+The application allows you to:
 
-* конвертировать текстовые документы в JSON
-* загружать документы в Weaviate Vector Database через Docker
-* выполнять семантический поиск по документам
-* общаться с AI-ассистентом через веб-интерфейс
+* convert text documents into structured JSON format
+* upload documents into Weaviate Vector Database via Docker
+* perform semantic search across documents
+* interact with an AI assistant through a web interface
 
 ---
 
-# 🚀 Возможности
+# 🚀 Features
 
-* 📄 Конвертация Markdown / TXT → JSON
-* 🧠 Векторизация документов с использованием HuggingFace Transformers
-* 🗄️ Хранение документов в Weaviate Vector Database
-* 🔎 Семантический поиск по документам
-* 🤖 AI-ассистент с использованием:
+* 📄 Convert Markdown / TXT → JSON
+* 🧠 Generate embeddings using HuggingFace Transformers
+* 🗄️ Store document vectors in Weaviate Vector Database
+* 🔎 Perform semantic search using vector similarity
+* 🤖 AI assistant powered by:
 
-  * OpenRouter (OpenAI модели)
+  * OpenRouter (OpenAI models)
   * YandexGPT
-* 🌐 Веб-интерфейс через Streamlit
-* 🐳 Поддержка Docker
+* 🌐 Web interface built with Streamlit
+* 🐳 Docker support for database deployment
 
 ---
 
-# 🏗️ Архитектура
+# 🏗️ Architecture
 
-Pipeline работы:
+Processing pipeline:
 
 ```
 Text / Markdown Files
@@ -50,56 +50,56 @@ Web Application (Streamlit)
 
 ---
 
-# 📂 Структура проекта
+# 📂 Project Structure
 
 ```
 Search-App/
 │
-├── text_to_json.py       # Конвертация документов в JSON
-├── json_to_docker.py     # Загрузка JSON в Weaviate
-├── run_app.py            # Запуск веб-приложения
-├── app_weaviate.py       # Основное AI приложение
-├── requirements.txt      # Зависимости Python
-├── .env                  # API ключи и настройки
+├── text_to_json.py       # Converts documents to JSON
+├── json_to_docker.py     # Uploads JSON to Weaviate
+├── run_app.py            # Starts the web application
+├── app_weaviate.py       # Core AI application logic
+├── requirements.txt      # Python dependencies
+├── .env                  # API keys and configuration
 │
 ├── Files/
-│   ├── text_files/      # Исходные документы
-│   └── json/            # JSON файлы
+│   ├── text_files/      # Source documents
+│   └── json/            # Generated JSON files
 ```
 
 ---
 
-# ⚙️ Требования
+# ⚙️ Requirements
 
 * Python 3.10+
 * Docker
 * Docker Compose
-* API ключ одного из провайдеров:
+* API key from one of the providers:
 
   * OpenRouter API Key
-    или
+    OR
   * Yandex Cloud API Key + Folder ID
 
 ---
 
-# 📦 Установка
+# 📦 Installation
 
-## 1. Клонировать репозиторий
+## 1. Clone the repository
 
 ```
-git clone https://github.com/yourusername/Search-App.git
-cd Search-App
+git clone https://github.com/MmOKe666/Search-Documet.git
+cd Search-Documet
 ```
 
 ---
 
-## 2. Установить зависимости
+## 2. Install dependencies
 
 ```
 pip install -r requirements.txt
 ```
 
-Основные библиотеки:
+Main libraries used:
 
 * streamlit
 * weaviate-client
@@ -111,9 +111,9 @@ pip install -r requirements.txt
 
 ---
 
-## 3. Настроить .env файл
+## 3. Configure environment variables
 
-Пример:
+Create a `.env` file:
 
 ```
 WEAVIATE_URL=http://localhost:8080
@@ -129,15 +129,15 @@ EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
 
 ---
 
-# 🐳 Запуск Weaviate через Docker
+# 🐳 Run Weaviate using Docker
 
-В папке проекта:
+In the project folder, run:
 
 ```
 docker-compose up -d
 ```
 
-Проверка:
+Verify that containers are running:
 
 ```
 docker ps
@@ -145,21 +145,21 @@ docker ps
 
 ---
 
-# 📄 Шаг 1 — Конвертация документов
+# 📄 Step 1 — Convert documents
 
-Помести файлы в:
+Place your documents in:
 
 ```
 Files/text_files/
 ```
 
-Запусти:
+Run:
 
 ```
 python text_to_json.py
 ```
 
-Результат:
+Output:
 
 ```
 Files/json/*.json
@@ -167,26 +167,26 @@ Files/json/*.json
 
 ---
 
-# 🗄️ Шаг 2 — Загрузка документов в Weaviate
+# 🗄️ Step 2 — Upload documents to Weaviate
 
 ```
 python json_to_docker.py
 ```
 
-Документы будут автоматически:
+Documents will be:
 
-* векторизованы
-* загружены в правильные коллекции
+* converted into embeddings
+* uploaded into vector database collections
 
 ---
 
-# 🤖 Шаг 3 — Запуск AI приложения
+# 🤖 Step 3 — Start the AI application
 
 ```
 python run_app.py
 ```
 
-Откроется браузер:
+The application will open in your browser:
 
 ```
 http://localhost:8501
@@ -194,18 +194,18 @@ http://localhost:8501
 
 ---
 
-# 💬 Использование
+# 💬 Usage
 
-В веб-интерфейсе можно:
+In the web interface, you can:
 
-* выбрать LLM provider
-* выбрать коллекции документов
-* задать вопрос
-* получить ответ на основе документов
+* select an AI provider
+* select document collections
+* ask questions in natural language
+* receive AI-generated answers based on document content
 
 ---
 
-# 🧠 Используемые технологии
+# 🧠 Technologies Used
 
 * Python
 * Streamlit
@@ -219,33 +219,33 @@ http://localhost:8501
 
 ---
 
-# 🔎 Пример использования
+# 🔎 Example
 
-Вопрос:
+Question:
 
 ```
 How does the component initialization work?
 ```
 
-Ответ:
+Response:
 
 ```
-• Component initialization starts with configuration loading
-• Required dependencies are injected
-• System registers component in registry
+• Component initialization starts with configuration loading  
+• Required dependencies are injected  
+• System registers component in registry  
 ```
 
 ---
 
 # 🛠️ Troubleshooting
 
-Если ошибка подключения к Weaviate:
+If Weaviate connection fails:
 
 ```
 docker-compose up -d
 ```
 
-Если ошибка зависимостей:
+If dependency errors occur:
 
 ```
 pip install -r requirements.txt
@@ -253,4 +253,6 @@ pip install -r requirements.txt
 
 ---
 
+# 👤 Author
 
+GitHub: https://github.com/MmOKe666
