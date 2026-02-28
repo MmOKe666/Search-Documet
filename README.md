@@ -205,6 +205,43 @@ In the web interface, you can:
 
 ---
 
+# 🖥️ User Interface
+
+The application provides a web interface with a sidebar for configuring the AI assistant and search settings.
+
+## Sidebar Options
+
+**AI Provider**
+Select the language model provider (OpenRouter or YandexGPT) used to generate responses.
+
+**Model Selection**
+Choose the specific LLM model. Different models provide different response quality, speed, and cost.
+
+**Document Collections**
+Select one or more document collections stored in the vector database. The AI assistant will search only within the selected collections.
+
+**Search Method (Hybrid Search)**
+The system uses **hybrid search**, which combines:
+
+* **Vector search** — finds semantically similar content using embeddings
+* **Keyword search** — finds exact matches based on keywords
+
+A parameter called **alpha** controls the balance:
+
+* **alpha = 0** → keyword search only (exact matching)
+* **alpha = 1** → vector search only (semantic similarity)
+* **0 < alpha < 1** → hybrid search (recommended)
+
+Hybrid search improves accuracy by combining semantic understanding with exact keyword matching.
+
+---
+
+## Main Interface
+
+The main area allows the user to enter questions and receive AI-generated answers based on the selected document collections.
+
+---
+
 # 🧠 Technologies Used
 
 * Python
